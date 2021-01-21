@@ -743,6 +743,7 @@ is_known_identity_cert(oc_sec_cred_t *cred)
   /* Identity cert chain currently tracked by mbedTLS */
   mbedtls_x509_crt *id_cert = &certs->cert;
   mbedtls_x509_crt cert_in_cred;
+  cert_in_cred.next = NULL;
   mbedtls_x509_crt *cert = &cert_in_cred;
 next_cred_in_chain:
 

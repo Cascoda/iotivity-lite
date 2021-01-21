@@ -45,6 +45,7 @@ pki_add_intermediate_cert(size_t device, int credid, const unsigned char *cert,
   size_t c_size = cert_size;
   mbedtls_x509_crt int_ca;
   mbedtls_x509_crt_init(&int_ca);
+  int_ca.next = NULL;
   if (oc_certs_is_PEM((const unsigned char *)cert, cert_size) != 0) {
     OC_ERR("provided cert is not in PEM format");
     return -1;
@@ -61,6 +62,7 @@ pki_add_intermediate_cert(size_t device, int credid, const unsigned char *cert,
   OC_DBG("parsed intermediate CA cert");
 
   mbedtls_x509_crt id_cert_chain, *id_cert;
+  id_cert_chain.next = NULL;
   mbedtls_x509_crt_init(&id_cert_chain);
 
   /* Parse the identity cert chain */
@@ -174,6 +176,8 @@ pki_add_identity_cert(size_t device, const unsigned char *cert,
 
   mbedtls_x509_crt cert1, cert2;
   mbedtls_x509_crt_init(&cert1);
+  cert1.next = NULL;
+  cert2.next = NULL;
 
   /* Parse identity cert chain */
   ret = mbedtls_x509_crt_parse(&cert1, (const unsigned char *)cert, c_size);
@@ -266,6 +270,8 @@ pki_add_trust_anchor(size_t device, const unsigned char *cert, size_t cert_size,
 
   mbedtls_x509_crt cert1, cert2;
   mbedtls_x509_crt_init(&cert1);
+  cert1.next = NULL;
+  cert2.next = NULL;
   size_t c_size = cert_size;
 
   /* Parse root cert */

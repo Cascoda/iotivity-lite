@@ -102,8 +102,8 @@ HEADERS_PORT = $(wildcard ../../port/*.h)
 HEADERS_TINYCBOR = $(wildcard ../../deps/tinycbor/src/*.h)
 
 CFLAGS_CLOUD=-I../../api/cloud
-CFLAGS=-fPIC -fno-asynchronous-unwind-tables -fno-omit-frame-pointer -ffreestanding -Os -fno-stack-protector -ffunction-sections -fdata-sections -fno-reorder-functions -fno-defer-pop -fno-strict-overflow -I./ -I../../include/ -I../../ -std=gnu99 -Wall -Wextra -Werror -pedantic #-Wl,-Map,client.map
-CXXFLAGS+=-fPIC -fno-asynchronous-unwind-tables -fno-omit-frame-pointer -ffreestanding -Os -fno-stack-protector -ffunction-sections -fdata-sections -fno-reorder-functions -fno-defer-pop -fno-strict-overflow -I./ -I../../include/ -I../../ -Wall -Wextra -Werror -pedantic #-Wl,-Map,client.map
+CFLAGS=-fPIC -fno-asynchronous-unwind-tables -fno-omit-frame-pointer -ffreestanding -Os -fno-stack-protector -ffunction-sections -fdata-sections -fno-reorder-functions -fno-defer-pop -fno-strict-overflow -I./ -I../../include/ -I../../ -std=gnu99 -Wall -Wextra -pedantic #-Wl,-Map,client.map
+CXXFLAGS+=-fPIC -fno-asynchronous-unwind-tables -fno-omit-frame-pointer -ffreestanding -Os -fno-stack-protector -ffunction-sections -fdata-sections -fno-reorder-functions -fno-defer-pop -fno-strict-overflow -I./ -I../../include/ -I../../ -Wall -Wextra -pedantic #-Wl,-Map,client.map
 OBJ_COMMON=$(addprefix obj/,$(notdir $(SRC_COMMON:.c=.o)))
 OBJ_CLIENT=$(addprefix obj/client/,$(notdir $(SRC:.c=.o)))
 OBJ_SERVER=$(addprefix obj/server/,$(filter-out oc_obt.o oc_obt_otm_justworks.o oc_obt_otm_randompin.o oc_obt_otm_cert.o oc_obt_certs.o,$(notdir $(SRC:.c=.o))))
@@ -394,9 +394,9 @@ cloud_client: libiotivity-lite-client-server.a $(ROOT_DIR)/apps/cloud_client.c c
 	@mkdir -p $@_creds
 	${CC} -o $@ ../../apps/cloud_client.c libiotivity-lite-client-server.a -DOC_CLIENT -DOC_SERVER ${CFLAGS} ${CFLAGS_CLOUD}  ${LIBS}
 
-cloud_proxy: libiotivity-lite-client-server.a $(ROOT_DIR)/apps/cloud_server.c copy_pki_certs
+cloud_proxy: libiotivity-lite-client-server.a $(ROOT_DIR)/apps/cloud_proxy.c copy_pki_certs
 	@mkdir -p $@_creds
-	${CC} -o $@ ../../apps/cloud_server.c libiotivity-lite-client-server.a -DOC_CLIENT -DOC_SERVER ${CFLAGS} ${CFLAGS_CLOUD}  ${LIBS}
+	${CC} -o $@ ../../apps/cloud_proxy.c libiotivity-lite-client-server.a -DOC_CLIENT -DOC_SERVER ${CFLAGS} ${CFLAGS_CLOUD}  ${LIBS}
 
 cloud_tests: libiotivity-lite-client-server.a $(ROOT_DIR)/apps/cloud_certification_tests.c
 	@mkdir -p $@_creds

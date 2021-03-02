@@ -134,7 +134,7 @@ ifeq ($(CLOUD),1)
 	CFLAGS += -DOC_CLOUD
 	TCP=1
 	IPV4=1
-	SAMPLES += cloud_client cloud_server cloud_tests
+	SAMPLES += cloud_client cloud_server cloud_tests cloud_proxy
 endif
 
 OBT = onboarding_tool
@@ -393,6 +393,10 @@ cloud_server: libiotivity-lite-client-server.a $(ROOT_DIR)/apps/cloud_server.c c
 cloud_client: libiotivity-lite-client-server.a $(ROOT_DIR)/apps/cloud_client.c copy_pki_certs
 	@mkdir -p $@_creds
 	${CC} -o $@ ../../apps/cloud_client.c libiotivity-lite-client-server.a -DOC_CLIENT -DOC_SERVER ${CFLAGS} ${CFLAGS_CLOUD}  ${LIBS}
+
+cloud_proxy: libiotivity-lite-client-server.a $(ROOT_DIR)/apps/cloud_server.c copy_pki_certs
+	@mkdir -p $@_creds
+	${CC} -o $@ ../../apps/cloud_server.c libiotivity-lite-client-server.a -DOC_CLIENT -DOC_SERVER ${CFLAGS} ${CFLAGS_CLOUD}  ${LIBS}
 
 cloud_tests: libiotivity-lite-client-server.a $(ROOT_DIR)/apps/cloud_certification_tests.c
 	@mkdir -p $@_creds

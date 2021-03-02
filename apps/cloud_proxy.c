@@ -168,7 +168,7 @@ static oc_endpoint_t* is_udn_listed(char* udn)
   PRINT("  Finding UDN %s \n", udn);
   oc_endpoint_t* ep = discovered_server;
   while (ep != NULL) {
-    char uuid[OC_UUID_LEN] = { 0 };
+    char uuid[128] = { 0 };
     oc_uuid_to_str(&ep->di, uuid, OC_UUID_LEN);
     PRINT("        uuid %s\n", uuid);
     PRINT("        udn  %s\n", udn);
@@ -614,7 +614,7 @@ register_resources(void)
   // only local device registration
   oc_add_resource(res_d2dserverlist);
   // testing 
-  oc_cloud_add_resource(res_d2dserverlist);
+  //oc_cloud_add_resource(res_d2dserverlist);
 }
 
 #ifdef OC_SECURITY
@@ -742,47 +742,14 @@ static bool is_vertical(char* resource_type)
 static void
 get_local_resource_response(oc_client_response_t* data)
 {
-  oc_request_t* request = data->user_data;
-
-  /*
   if (array_response.active) {
     oc_set_separate_response_buffer(&array_response);
-    PRINT("get_local_resource_response:\n");
-    int i;
-    for (i = 0; i < 100; i++) {
-      large_array[i] = oc_random_value();
-      PRINT("(%d %d) ", i, large_array[i]);
-    }
-    PRINT("\n");
+    oc_request_t* request = data->user_data;
 
-    data
-    oc_rep_start_root_object();
-    oc_rep_set_int_array(root, array, large_array, 100);
-    oc_rep_end_root_object();
+    memcpy(array_response.buffer, data->_payload, data->_payload_len);
+    printf("Handle separate response for GET handler:\n");
     oc_send_separate_response(&array_response, OC_STATUS_OK);
   }
-  return OC_EVENT_DONE;
-  */
-
-  //
- // data->_payload
-
-  // do the response on the request with the data.
-  oc_rep_start_root_object();
-  //switch (iface_mask) {
-  //case OC_IF_BASELINE:
-    //oc_process_baseline_interface(request->resource);
-  //case OC_IF_RW:
-    //oc_rep_set_boolean(root, state, state);
-    //oc_rep_set_int(root, power, power);
-    oc_rep_set_text_string(root, name, "blah blah");
- //   break;
- // default:
- //   break;
- // }
-  oc_rep_end_root_object();
-
-  oc_send_response(request, OC_STATUS_OK);
 }
 
 static void

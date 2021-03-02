@@ -747,21 +747,16 @@ get_local_resource_response(oc_client_response_t* data)
 
   PRINT(" get_local_resource_response: \n");
 
-  oc_request_t* request = data->user_data;
-  //PRINT(" cloud URI: %s", oc_string(request->resource->uri));
-
   PRINT(" RESPONSE: " );
   oc_parse_rep(data->_payload, data->_payload_len, &value_list);
   print_rep(value_list, false);
 
-  // the dogy stuff below
-
-  uint8_t* buf = malloc(data->_payload_len+1);
-  request->response->response_buffer = buf;
-
-  memcpy(buf, data->_payload, data->_payload_len);
-
-  oc_send_response(request, OC_STATUS_OK);
+  if (array_response.active) {
+    oc_set_separate_response_buffer(&array_response);
+    memcpy(array_response.buffer, data->_payload, data->_payload_len);
+    PRINT(" sending separate response");
+    oc_send_separate_response(&array_response, OC_STATUS_OK);
+  }
 }
 
 static void
@@ -786,7 +781,7 @@ get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_d
   oc_indicate_separate_response(request, &array_response);
 
 
-  oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, array_response);
+  oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, request);
 
 
   //oc_set_delayed_callback(NULL, &handle_array_response, 5);

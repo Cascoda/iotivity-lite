@@ -168,7 +168,7 @@ static oc_endpoint_t* is_udn_listed(char* udn)
   PRINT("  Finding UDN %s \n", udn);
   oc_endpoint_t* ep = discovered_server;
   while (ep != NULL) {
-    char uuid[128] = { 0 };
+    char uuid[OC_UUID_LEN] = { 0 };
     oc_uuid_to_str(&ep->di, uuid, OC_UUID_LEN);
     PRINT("        uuid %s\n", uuid);
     PRINT("        udn  %s\n", udn);
@@ -701,12 +701,13 @@ static bool is_vertical(char* resource_type)
   if (strncmp(resource_type, "oic.d.", 6) == 0)
     return false;
 
+  // these should be false, but they are in the clear, so usefull for debugging.
   if (size_rt == 10 && strncmp(resource_type, "oic.wk.res", 10) == 0)
     return true;
   if (size_rt == 8 && strncmp(resource_type, "oic.wk.p", 8) == 0)
-    return false;
+    return true;
   if (size_rt == 8 && strncmp(resource_type, "oic.wk.d", 8) == 0)
-    return false;
+    return true;
 
 
   if (size_rt == 11 && strncmp(resource_type, "oic.r.roles", 11) == 0)
@@ -742,14 +743,25 @@ static bool is_vertical(char* resource_type)
 static void
 get_local_resource_response(oc_client_response_t* data)
 {
-  if (array_response.active) {
-    oc_set_separate_response_buffer(&array_response);
-    oc_request_t* request = data->user_data;
+  oc_rep_t * value_list;
 
-    memcpy(array_response.buffer, data->_payload, data->_payload_len);
-    printf("Handle separate response for GET handler:\n");
-    oc_send_separate_response(&array_response, OC_STATUS_OK);
-  }
+  PRINT(" get_local_resource_response: \n");
+
+  oc_request_t* request = data->user_data;
+  //PRINT(" cloud URI: %s", oc_string(request->resource->uri));
+
+  PRINT(" RESPONSE: " );
+  oc_parse_rep(data->_payload, data->_payload_len, &value_list);
+  print_rep(value_list, false);
+
+  // the dogy stuff below
+
+  uint8_t* buf = malloc(data->_payload_len+1);
+  request->response->response_buffer = buf;
+
+  memcpy(buf, data->_payload, data->_payload_len);
+
+  oc_send_response(request, OC_STATUS_OK);
 }
 
 static void
@@ -765,15 +777,20 @@ get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_d
   url_to_udn(url, local_udn);
   local_server = is_udn_listed(local_udn);
   url_to_local_url(url, local_url );
+  PRINT("       local udn: %s\n", local_udn);
+  PRINT("       local url: %s\n", local_url);
 
-  oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, request);
+  //oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, request);
 
 
   oc_indicate_separate_response(request, &array_response);
+
+
+  oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, array_response);
+
+
   //oc_set_delayed_callback(NULL, &handle_array_response, 5);
-
   // send a response that the actual response will be later..
-
   //oc_send_response(request, OC_STATUS_SERVICE_UNAVAILABLE );
 
 }

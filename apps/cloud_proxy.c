@@ -793,7 +793,7 @@ get_local_resource_response(oc_client_response_t* data)
   oc_send_separate_response(delay_response, data->code);
 
  // delete the allocated memory in get_resource
-  free(delay_response);
+  //free(delay_response);
 }
 
 /**
@@ -854,7 +854,7 @@ post_local_resource_response(oc_client_response_t* data)
   oc_send_separate_response(delay_response, data->code);
 
   // delete the allocated memory in get_resource
-  free(delay_response);
+  //free(delay_response);
 }
 
 
@@ -894,6 +894,15 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
   if (oc_init_post(local_url, local_server, query_as_string, &post_local_resource_response, LOW_QOS, delay_response)) {
     // Forward the request to the local device, using the same payload
     oc_rep_encode_raw(request->_payload, request->_payload_len);
+
+    PRINT(" post_resource: \n");
+    PRINT(" REQUEST: ");
+    PRINT(" Original Size = %d, Encoded Size = %d", request->_payload_len, oc_rep_get_encoded_payload_size());
+    PRINT("g_buffer = %p", oc_rep_get_encoder_buf());
+    oc_rep_t* value_list;
+    oc_parse_rep(oc_rep_get_encoder_buf(), oc_rep_get_encoded_payload_size(), &value_list);
+    print_rep(value_list, false);
+
     if (oc_do_post())
       PRINT("Sent POST request\n");
     else
@@ -929,7 +938,7 @@ delete_local_resource_response(oc_client_response_t* data)
   oc_send_separate_response(delay_response, data->code);
 
   // delete the allocated memory in get_resource
-  free(delay_response);
+  //free(delay_response);
 }
 
 /**

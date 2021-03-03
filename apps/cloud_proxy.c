@@ -158,7 +158,6 @@ static void url_to_udn(const char* url, char* udn)
   udn[OC_UUID_LEN - 1] = '\0';
 }
 
-
 /**
 * function to retrieve the local url from the cloud url
 *
@@ -176,7 +175,6 @@ static void anchor_to_udn(const char* anchor, char* udn)
 {
   strcpy(udn, &anchor[6]);
 }
-
 
 /**
 * function to retrieve the endpoint based on udn
@@ -200,8 +198,6 @@ static oc_endpoint_t* is_udn_listed(char* udn)
   }
   return NULL;
 }
-
-
 
 /**
 * function to set up the device.
@@ -709,7 +705,10 @@ initialize_variables(void)
 
 }
 
-
+/**
+* check if the resource type is a vertical resource.
+* if it is a vertical resource: it will be registered in the cloud
+*/
 static bool is_vertical(char* resource_type)
 {
   int size_rt = (int)strlen(resource_type);
@@ -756,7 +755,10 @@ static bool is_vertical(char* resource_type)
 }
 
 
-
+/**
+* Call back for the "GET" to the local device
+* note that the user data contains the delayed response information
+*/
 static void
 get_local_resource_response(oc_client_response_t* data)
 {
@@ -774,41 +776,52 @@ get_local_resource_response(oc_client_response_t* data)
   delay_response->len = data->_payload_len;
 
   oc_send_separate_response(delay_response, data->code);
- 
+
+ // delete the allocated memory in get_resource
+  free(delay_response);
 }
 
+/**
+* Call back for the "GET" from the cloud
+* will invoke a GET to the local device
+* will respond as a 
+*/
 static void
 get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_data)
 {
   (void)request;
   (void)interfaces;
   (void) user_data;
-  
+  char query_as_string[MAX_URI_LENGTH * 2]="";
   char url[MAX_URI_LENGTH*2];
   char local_url[MAX_URI_LENGTH * 2];
   char local_udn[OC_UUID_LEN * 2];
   oc_endpoint_t* local_server;
 
   oc_separate_response_t* delay_response = NULL;
-
-  
   delay_response = malloc(sizeof(oc_separate_response_t));
   memset(delay_response, 0, sizeof(oc_separate_response_t));
-
 
   strcpy(url, oc_string(request->resource->uri));
   PRINT(" get_resource %s", url);
   url_to_udn(url, local_udn);
   local_server = is_udn_listed(local_udn);
   url_to_local_url(url, local_url );
-  PRINT("       local udn: %s\n", local_udn);
-  PRINT("       local url: %s\n", local_url);
+  PRINT("      local udn: %s\n", local_udn);
+  PRINT("      local url: %s\n", local_url);
+  if (request->query_len > 0) {
+    PRINT("      query    : %s\n", request->query);
+  }
+  // create the query string
+  for (int i = 0; i < request->query_len; i++)
+  {
+    strcat(query_as_string, request->query);
+  }
 
   oc_set_separate_response_buffer(delay_response);
   oc_indicate_separate_response(request, delay_response);
-  oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, delay_response);
+  oc_do_get(local_url, local_server, query_as_string, &get_local_resource_response, LOW_QOS, delay_response);
   PRINT("       DISPATCHED\n");
-
 }
 
 static void

@@ -846,6 +846,7 @@ post_local_resource_response(oc_client_response_t* data)
   PRINT(" RESPONSE: ");
   oc_parse_rep(data->_payload, (int)data->_payload_len, &value_list);
   print_rep(value_list, false);
+  //oc_free_rep(value_list);
 
   memcpy(delay_response->buffer, data->_payload, (int)data->_payload_len);
   delay_response->len = data->_payload_len;
@@ -891,10 +892,8 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
   oc_indicate_separate_response(request, delay_response);
 
   if (oc_init_post(local_url, local_server, query_as_string, &post_local_resource_response, LOW_QOS, delay_response)) {
-    oc_rep_start_root_object();
-    oc_rep_set_boolean(root, state, true);
-    oc_rep_set_int(root, power, 55);
-    oc_rep_end_root_object();
+    // Forward the request to the local device, using the same payload
+    oc_rep_encode_raw(request->_payload, request->_payload_len);
     if (oc_do_post())
       PRINT("Sent POST request\n");
     else
@@ -903,7 +902,6 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
   else
     PRINT("Could not init POST request\n");
 
-  //oc_do_get(local_url, local_server, query_as_string, &get_local_resource_response, LOW_QOS, delay_response);
   PRINT("       DISPATCHED\n");
 
 }

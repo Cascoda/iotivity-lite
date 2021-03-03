@@ -107,7 +107,10 @@ static const char* device_name = "CloudProxy";
 /* global property variables for path: "d2dserverlist" */
 static char* g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist = "d2dserverlist"; /* the name for the attribute */
 
-/* array d2dserverlist  This Property maintains the list of the D2D Device's connection info i.e. {Device ID, Resource URI, end points} *//* array of objects */
+/* array d2dserverlist  This Property maintains the list of the D2D Device's connection info i.e. {Device ID, Resource URI, end points} */
+/* array of objects 
+*  di == strlen == zero ==> empty slot
+*/
 struct _d2dserverlist_d2dserverlist_t
 {
   char di[MAX_PAYLOAD_STRING];  /* Format pattern according to IETF RFC 4122. */
@@ -120,15 +123,6 @@ struct _d2dserverlist_d2dserverlist_t g_d2dserverlist_d2dserverlist[MAX_ARRAY];
 int g_d2dserverlist_d2dserverlist_array_size = 0;
 
 
-
-typedef struct
-{
-  oc_request_t* request;
-  oc_separate_response_t array_response;
-} proxy_data_t;
-
-
-
 static char* g_d2dserverlist_RESOURCE_PROPERTY_NAME_di = "di"; /* the name for the attribute */
 char g_d2dserverlist_di[MAX_PAYLOAD_STRING] = """"; /* current value of property "di" Format pattern according to IETF RFC 4122. *//* registration data variables for the resources */
 
@@ -138,7 +132,10 @@ static char* g_d2dserverlist_RESOURCE_TYPE[MAX_STRING] = { "oic.r.d2dserverlist"
 int g_d2dserverlist_nr_resource_types = 1;
 
 
-
+/**
+* function to print the returned cbor as JSON
+*
+*/
 void
 print_rep(oc_rep_t* rep, bool pretty_print)
 {
@@ -151,9 +148,10 @@ print_rep(oc_rep_t* rep, bool pretty_print)
   free(json);
 }
 
-
-
-
+/**
+* function to retrieve the udn from the cloud url
+*
+*/
 static void url_to_udn(const char* url, char* udn)
 {
   strcpy(udn, &url[1]);
@@ -161,16 +159,30 @@ static void url_to_udn(const char* url, char* udn)
 }
 
 
+/**
+* function to retrieve the local url from the cloud url
+*
+*/
 static void url_to_local_url(const char* url, char* local_url)
 {
   strcpy(local_url, &url[OC_UUID_LEN]);
 }
 
+/**
+* function to retrieve the udn from the anchor
+*
+*/
 static void anchor_to_udn(const char* anchor, char* udn)
 {
   strcpy(udn, &anchor[6]);
 }
 
+
+/**
+* function to retrieve the endpoint based on udn
+* using global discovered_server list
+*
+*/
 static oc_endpoint_t* is_udn_listed(char* udn)
 {
 
@@ -184,10 +196,6 @@ static oc_endpoint_t* is_udn_listed(char* udn)
     if (strncmp(uuid, udn, OC_UUID_LEN) == 0) {
       return ep;
     }
-
-    //PRINT("di = %s\n", uuid);
-    //PRINTipaddr(*ep);
-    //PRINT("\n"); 
     ep = ep->next;
   }
   return NULL;
@@ -313,19 +321,22 @@ get_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* u
     /* property (array of objects) 'd2dserverlist' */
     PRINT("   Array of objects : '%s'\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist);
     oc_rep_set_array(root, d2dserverlist);
-    for (int i = 0; i < g_d2dserverlist_d2dserverlist_array_size; i++)
+    for (int i = 0; i < MAX_ARRAY; i++)
     {
-      oc_rep_object_array_begin_item(d2dserverlist);
-      /* di ['string', 'Format pattern according to IETF RFC 4122.'] */
-      oc_rep_set_text_string(d2dserverlist, di, g_d2dserverlist_d2dserverlist[i].di);
-      PRINT("    string di : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].di);
-      /* eps ['object[]', 'the OCF Endpoint information of the target Resource'] */
-    /* eps not handled */
+      if (strlen(g_d2dserverlist_d2dserverlist[i].di) > 0) {
+        oc_rep_object_array_begin_item(d2dserverlist);
+        /* di ['string', 'Format pattern according to IETF RFC 4122.'] */
 
-      /* href ['string', 'This is the target URI, it can be specified as a Relative Reference or fully-qualified URI.'] */
-      oc_rep_set_text_string(d2dserverlist, href, g_d2dserverlist_d2dserverlist[i].href);
-      PRINT("    string href : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].href);
-      oc_rep_object_array_end_item(d2dserverlist);
+        oc_rep_set_text_string(d2dserverlist, di, g_d2dserverlist_d2dserverlist[i].di);
+        PRINT("    string di : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].di);
+        /* eps ['object[]', 'the OCF Endpoint information of the target Resource'] */
+        /* eps not handled yet */
+
+        /* href ['string', 'This is the target URI, it can be specified as a Relative Reference or fully-qualified URI.'] */
+        oc_rep_set_text_string(d2dserverlist, href, g_d2dserverlist_d2dserverlist[i].href);
+        PRINT("    string href : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].href);
+        oc_rep_object_array_end_item(d2dserverlist);
+      }
     }
     oc_rep_close_array(root, d2dserverlist);
 
@@ -367,19 +378,19 @@ get_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* u
 }
 
 /** 
+* check if the di exist in the array.
+* array 
 */
 static bool
 if_di_exist(char* di, int di_len)
 {
-  for (int i = 0; i < g_d2dserverlist_d2dserverlist_array_size; i++) {
+  for (int i = 0; i < MAX_ARRAY; i++) {
     if (strncmp(g_d2dserverlist_d2dserverlist[i].di, di, di_len) == 0) {
       return true;
     }
   }
   return false;
 }
-
-
 
 /**
 *  remove the di from the server list.
@@ -388,7 +399,7 @@ if_di_exist(char* di, int di_len)
 static bool
 remove_di(char* di)
 {
-  for (int i = 0; i < g_d2dserverlist_d2dserverlist_array_size; i++) {
+  for (int i = 0; i < MAX_ARRAY; i++) {
     if (strncmp(g_d2dserverlist_d2dserverlist[i].di, di, strlen(di)) == 0) {
       strcpy(g_d2dserverlist_d2dserverlist[i].di, "");
       return true;
@@ -468,6 +479,7 @@ post_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* 
   /* if the input is ok, then process the input document and assign the global variables */
   if (error_state == false)
   {
+    bool stored = false;
     switch (interfaces) {
     default: {
       /* loop over all the properties in the input document */
@@ -479,30 +491,42 @@ post_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* 
         if (strcmp(oc_string(rep->name), g_d2dserverlist_RESOURCE_PROPERTY_NAME_di) == 0) {
           /* assign "di" */
           PRINT("  property 'di' : %s\n", oc_string(rep->value.string));
+          // set the return value 
           strncpy(g_d2dserverlist_di, oc_string(rep->value.string), MAX_PAYLOAD_STRING - 1);
-          strncpy(g_d2dserverlist_d2dserverlist[g_d2dserverlist_d2dserverlist_array_size].di, g_d2dserverlist_di, MAX_PAYLOAD_STRING - 1);
-          g_d2dserverlist_d2dserverlist_array_size++;
+          for (int i = 0; i < MAX_ARRAY; i++)
+          {
+            if (strlen(g_d2dserverlist_d2dserverlist[g_d2dserverlist_d2dserverlist_array_size].di) == 0)
+            {
+              strncpy(g_d2dserverlist_d2dserverlist[i].di, g_d2dserverlist_di, MAX_PAYLOAD_STRING - 1);
+              stored = true;
+            }
+          }
+          rep = rep->next;
         }
-        rep = rep->next;
+        /* set the response */
+        PRINT("Set response \n");
+        oc_rep_start_root_object();
+        /*oc_process_baseline_interface(request->resource); */
+
+        PRINT("   %s : %s\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_di, g_d2dserverlist_di);
+        oc_rep_set_text_string(root, di, g_d2dserverlist_di);
+
+        oc_rep_end_root_object();
+        /* TODO: ACTUATOR add here the code to talk to the HW if one implements an actuator.
+         one can use the global variables as input to those calls
+         the global values have been updated already with the data from the request */
+        if (stored == true) {
+          oc_send_response(request, OC_STATUS_CHANGED);
+        }
+        else {
+          PRINT("MAX array exceeded, not stored, returing error \n");
+          oc_send_response(request, OC_STATUS_INTERNAL_SERVER_ERROR);
+        }
       }
-      /* set the response */
-      PRINT("Set response \n");
-      oc_rep_start_root_object();
-      /*oc_process_baseline_interface(request->resource); */
-
-      PRINT("   %s : %s\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_di, g_d2dserverlist_di);
-      oc_rep_set_text_string(root, di, g_d2dserverlist_di);
-
-      oc_rep_end_root_object();
-      /* TODO: ACTUATOR add here the code to talk to the HW if one implements an actuator.
-       one can use the global variables as input to those calls
-       the global values have been updated already with the data from the request */
-      oc_send_response(request, OC_STATUS_CHANGED);
     }
-    }
+   }
   }
-  else
-  {
+  else {
     PRINT("  Returning Error \n");
     /* TODO: add error response, if any */
     //oc_send_response(request, OC_STATUS_NOT_MODIFIED);
@@ -510,8 +534,6 @@ post_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* 
   }
   PRINT("-- End post_d2dserverlist\n");
 }
-
-
 
 /**
 * delete method for "d2dserverlist" resource.
@@ -562,7 +584,6 @@ delete_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void
   PRINT("-- End delete_d2dserverlist\n");
 }
 
-
 /**
 * register all the resources to the stack
 * this function registers all application level resources:
@@ -594,7 +615,7 @@ register_resources(void)
   /* periodic observable
      to be used when one wants to send an event per time slice
      period is 1 second */
-  oc_resource_set_periodic_observable(res_d2dserverlist, 1);
+  //oc_resource_set_periodic_observable(res_d2dserverlist, 1);
   /* set observable
      events are send when oc_notify_observers(oc_resource_t *resource) is called.
     this function must be called when the value changes, preferable on an interrupt when something is read from the hardware. */
@@ -606,8 +627,6 @@ register_resources(void)
   // no cloud registration.
   // only local device registration
   oc_add_resource(res_d2dserverlist);
-  // testing 
-  //oc_cloud_add_resource(res_d2dserverlist);
 }
 
 #ifdef OC_SECURITY
@@ -1011,6 +1030,8 @@ main(int argc, char* argv[])
 {
   int init;
   oc_clock_time_t next_event;
+
+  memset(&g_d2dserverlist_d2dserverlist, 0, sizeof(g_d2dserverlist_d2dserverlist));
 
   if (argc > 1) {
     device_name = argv[1];

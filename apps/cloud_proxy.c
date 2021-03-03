@@ -94,7 +94,7 @@ volatile int quit = 0;          /* stop variable, used by handle_signal */
 #define MAX_URI_LENGTH (30)
 
 static oc_endpoint_t* discovered_server;
-static oc_separate_response_t array_response;
+//static oc_separate_response_t array_response;
 //static oc_string_t name; 
 
 static const char* cis = "coap+tcp://127.0.0.1:5683";
@@ -118,6 +118,15 @@ struct _d2dserverlist_d2dserverlist_t
 };
 struct _d2dserverlist_d2dserverlist_t g_d2dserverlist_d2dserverlist[MAX_ARRAY];
 int g_d2dserverlist_d2dserverlist_array_size = 0;
+
+
+
+typedef struct
+{
+  oc_request_t* request;
+  oc_separate_response_t array_response;
+} proxy_data_t;
+
 
 
 static char* g_d2dserverlist_RESOURCE_PROPERTY_NAME_di = "di"; /* the name for the attribute */
@@ -743,20 +752,22 @@ static bool is_vertical(char* resource_type)
 static void
 get_local_resource_response(oc_client_response_t* data)
 {
-  oc_rep_t * value_list;
+  oc_rep_t * value_list=NULL;
+  oc_request_t * request=NULL;
+  oc_separate_response_t* delay_response;
+ 
+
+  delay_response = data->user_data;
+ 
 
   PRINT(" get_local_resource_response: \n");
-
   PRINT(" RESPONSE: " );
-  oc_parse_rep(data->_payload, data->_payload_len, &value_list);
+  oc_parse_rep(data->_payload, (int) data->_payload_len, &value_list);
   print_rep(value_list, false);
 
-  if (array_response.active) {
-    oc_set_separate_response_buffer(&array_response);
-    memcpy(array_response.buffer, data->_payload, data->_payload_len);
-    PRINT(" sending separate response");
-    oc_send_separate_response(&array_response, OC_STATUS_OK);
-  }
+
+  //oc_send_separate_response(delay_response, data->code);
+ 
 }
 
 static void
@@ -767,6 +778,13 @@ get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_d
   char local_udn[OC_UUID_LEN * 2];
   oc_endpoint_t* local_server;
 
+  oc_separate_response_t* delay_response = NULL;
+
+  
+  delay_response = malloc(sizeof(oc_separate_response_t));
+  memset(delay_response, 0, sizeof(oc_separate_response_t));
+
+
   strcpy(url, oc_string(request->resource->uri));
   PRINT(" get_resource %s", url);
   url_to_udn(url, local_udn);
@@ -775,18 +793,9 @@ get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_d
   PRINT("       local udn: %s\n", local_udn);
   PRINT("       local url: %s\n", local_url);
 
-  //oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, request);
-
-
-  oc_indicate_separate_response(request, &array_response);
-
-
-  oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, request);
-
-
-  //oc_set_delayed_callback(NULL, &handle_array_response, 5);
-  // send a response that the actual response will be later..
-  //oc_send_response(request, OC_STATUS_SERVICE_UNAVAILABLE );
+  oc_indicate_separate_response(request, delay_response);
+  oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, delay_response);
+  PRINT("       DISPATCHED\n");
 
 }
 

@@ -893,13 +893,71 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
 
 }
 
+/**
+* Call back for the "DELETE" to the local device
+* note that the user data contains the delayed response information
+*/
+static void
+delete_local_resource_response(oc_client_response_t* data)
+{
+  oc_rep_t* value_list = NULL;
+  oc_separate_response_t* delay_response;
 
+  delay_response = data->user_data;
+
+  PRINT(" delete_local_resource_response: \n");
+  PRINT(" RESPONSE: ");
+  oc_parse_rep(data->_payload, (int)data->_payload_len, &value_list);
+  print_rep(value_list, false);
+
+  memcpy(delay_response->buffer, data->_payload, (int)data->_payload_len);
+  delay_response->len = data->_payload_len;
+
+  oc_send_separate_response(delay_response, data->code);
+
+  // delete the allocated memory in get_resource
+  free(delay_response);
+}
+
+/**
+* Call back for the "DELETE" from the cloud
+* will invoke a DELETE to the local device
+* will respond as a
+*/
 static void
 delete_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_data)
 {
   (void)request;
   (void)interfaces;
   (void) user_data;
+  (void)interfaces;
+  (void)user_data;
+  char query_as_string[MAX_URI_LENGTH * 2] = "";
+  char url[MAX_URI_LENGTH * 2];
+  char local_url[MAX_URI_LENGTH * 2];
+  char local_udn[OC_UUID_LEN * 2];
+  oc_endpoint_t* local_server;
+
+  oc_separate_response_t* delay_response = NULL;
+  delay_response = malloc(sizeof(oc_separate_response_t));
+  memset(delay_response, 0, sizeof(oc_separate_response_t));
+
+  strcpy(url, oc_string(request->resource->uri));
+  PRINT(" delete_resource %s", url);
+  url_to_udn(url, local_udn);
+  local_server = is_udn_listed(local_udn);
+  url_to_local_url(url, local_url);
+  PRINT("      local udn: %s\n", local_udn);
+  PRINT("      local url: %s\n", local_url);
+  if (request->query_len > 0) {
+    strncpy(query_as_string, request->query, request->query_len);
+    PRINT("      query    : %s\n", query_as_string);
+  }
+
+  oc_set_separate_response_buffer(delay_response);
+  oc_indicate_separate_response(request, delay_response);
+  oc_do_delete(local_url, local_server, query_as_string, &delete_local_resource_response, LOW_QOS, delay_response);
+  PRINT("       DISPATCHED\n");
 
 }
 

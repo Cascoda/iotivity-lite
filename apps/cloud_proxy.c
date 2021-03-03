@@ -397,23 +397,6 @@ remove_di(char* di)
   return false;
 }
 
-/**
-* TODO remove the blank entries by shifting everything up
-* 
-*/
-static bool
-fix_list()
-{
-  for (int i = 0; i < g_d2dserverlist_d2dserverlist_array_size; i++) {
-// if (strlen(g_d2dserverlist_d2dserverlist[i].di) == 0) {
-//      strcpy(g_d2dserverlist_d2dserverlist[i].di, "");
-//      return true;
-//    }
-  }
-  return false;
-}
-
-
 
 /**
 * post method for "d2dserverlist" resource.
@@ -561,6 +544,7 @@ delete_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void
     if (if_di_exist(_di, _di_len)) {
       // remove it
       PRINT(" FOUND = TRUE \n");
+      remove_di(_di);
     }
     else {
       // not in the list
@@ -753,13 +737,10 @@ static void
 get_local_resource_response(oc_client_response_t* data)
 {
   oc_rep_t * value_list=NULL;
-  oc_request_t * request=NULL;
   oc_separate_response_t* delay_response;
  
-
   delay_response = data->user_data;
  
-
   PRINT(" get_local_resource_response: \n");
   PRINT(" RESPONSE: " );
   oc_parse_rep(data->_payload, (int) data->_payload_len, &value_list);
@@ -775,6 +756,10 @@ get_local_resource_response(oc_client_response_t* data)
 static void
 get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_data)
 {
+  (void)request;
+  (void)interfaces;
+  (void) user_data;
+  
   char url[MAX_URI_LENGTH*2];
   char local_url[MAX_URI_LENGTH * 2];
   char local_udn[OC_UUID_LEN * 2];
@@ -805,6 +790,9 @@ get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_d
 static void
 post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_data)
 {
+  (void)request;
+  (void)interfaces;
+  (void) user_data;
 
 }
 
@@ -812,6 +800,9 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
 static void
 delete_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_data)
 {
+  (void)request;
+  (void)interfaces;
+  (void) user_data;
 
 }
 
@@ -822,6 +813,7 @@ discovery(const char* anchor, const char* uri, oc_string_array_t types,
 {
   (void)user_data;
   (void)bm;
+  (void) x;
   int i;
   char url [MAX_URI_LENGTH];
   char udn[200];

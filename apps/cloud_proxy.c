@@ -224,9 +224,9 @@ app_init(void)
   uint8_t* buffer;
   size_t buffer_size;
   const char introspection_error[] =
-    "\tERROR Could not read 'server_introspection.cbor'\n"
+    "\tERROR Could not read 'cloud_proxy.swagger.json.cbor'\n"
     "\tIntrospection data not set.\n";
-  fp = fopen("./server_introspection.cbor", "rb");
+  fp = fopen("./cloud_proxy.swagger.json.cbor", "rb");
   if (fp) {
     fseek(fp, 0, SEEK_END);
     buffer_size = ftell(fp);
@@ -498,6 +498,9 @@ post_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* 
             if (strlen(g_d2dserverlist_d2dserverlist[g_d2dserverlist_d2dserverlist_array_size].di) == 0)
             {
               strncpy(g_d2dserverlist_d2dserverlist[i].di, g_d2dserverlist_di, MAX_PAYLOAD_STRING - 1);
+
+              // TODO : initiate a new scan of the network so that the URLS are added to the cloud.
+
               stored = true;
             }
           }
@@ -566,6 +569,8 @@ delete_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void
     if (if_di_exist(_di, _di_len)) {
       // remove it
       PRINT(" FOUND = TRUE \n");
+
+      // TODO: also remove the resources that are registered..
       remove_di(_di);
     }
     else {

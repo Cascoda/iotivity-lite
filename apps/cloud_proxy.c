@@ -765,8 +765,9 @@ get_local_resource_response(oc_client_response_t* data)
   oc_parse_rep(data->_payload, (int) data->_payload_len, &value_list);
   print_rep(value_list, false);
 
+  memcpy(delay_response->buffer, data->_payload, (int)data->_payload_len);
 
-  //oc_send_separate_response(delay_response, data->code);
+  oc_send_separate_response(delay_response, data->code);
  
 }
 
@@ -793,6 +794,7 @@ get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_d
   PRINT("       local udn: %s\n", local_udn);
   PRINT("       local url: %s\n", local_url);
 
+  oc_set_separate_response_buffer(delay_response);
   oc_indicate_separate_response(request, delay_response);
   oc_do_get(local_url, local_server, NULL, &get_local_resource_response, LOW_QOS, delay_response);
   PRINT("       DISPATCHED\n");

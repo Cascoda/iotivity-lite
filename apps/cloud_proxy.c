@@ -825,11 +825,80 @@ get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_d
 }
 
 static void
+post_local_resource_response(oc_client_response_t* data)
+{
+  oc_rep_t* value_list = NULL;
+  oc_separate_response_t* delay_response;
+
+  delay_response = data->user_data;
+
+  PRINT(" post_local_resource_response: \n");
+  PRINT(" RESPONSE: ");
+  oc_parse_rep(data->_payload, (int)data->_payload_len, &value_list);
+  print_rep(value_list, false);
+
+  memcpy(delay_response->buffer, data->_payload, (int)data->_payload_len);
+  delay_response->len = data->_payload_len;
+
+  oc_send_separate_response(delay_response, data->code);
+
+  // delete the allocated memory in get_resource
+  free(delay_response);
+}
+
+
+
+static void
 post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_data)
 {
   (void)request;
   (void)interfaces;
   (void) user_data;
+
+  char query_as_string[MAX_URI_LENGTH * 2] = "";
+  char url[MAX_URI_LENGTH * 2];
+  char local_url[MAX_URI_LENGTH * 2];
+  char local_udn[OC_UUID_LEN * 2];
+  oc_endpoint_t* local_server;
+
+  oc_separate_response_t* delay_response = NULL;
+  delay_response = malloc(sizeof(oc_separate_response_t));
+  memset(delay_response, 0, sizeof(oc_separate_response_t));
+
+  strcpy(url, oc_string(request->resource->uri));
+  PRINT(" post_resource %s", url);
+  url_to_udn(url, local_udn);
+  local_server = is_udn_listed(local_udn);
+  url_to_local_url(url, local_url);
+  PRINT("      local udn: %s\n", local_udn);
+  PRINT("      local url: %s\n", local_url);
+  if (request->query_len > 0) {
+    PRINT("      query    : %s\n", request->query);
+  }
+  // create the query string
+  for (int i = 0; i < request->query_len; i++)
+  {
+    strcat(query_as_string, request->query);
+  }
+
+  oc_set_separate_response_buffer(delay_response);
+  oc_indicate_separate_response(request, delay_response);
+
+  if (oc_init_post(local_url, local_server, query_as_string, &post_local_resource_response, LOW_QOS, delay_response)) {
+    oc_rep_start_root_object();
+    oc_rep_set_boolean(root, state, true);
+    oc_rep_set_int(root, power, 55);
+    oc_rep_end_root_object();
+    if (oc_do_post())
+      PRINT("Sent POST request\n");
+    else
+      PRINT("Could not send POST request\n");
+  }
+  else
+    PRINT("Could not init POST request\n");
+
+  //oc_do_get(local_url, local_server, query_as_string, &get_local_resource_response, LOW_QOS, delay_response);
+  PRINT("       DISPATCHED\n");
 
 }
 

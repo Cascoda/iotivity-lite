@@ -328,9 +328,11 @@ get_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* u
         /* eps ['object[]', 'the OCF Endpoint information of the target Resource'] */
         /* eps not handled yet */
 
-        /* href ['string', 'This is the target URI, it can be specified as a Relative Reference or fully-qualified URI.'] */
-        oc_rep_set_text_string(d2dserverlist, href, g_d2dserverlist_d2dserverlist[i].href);
-        PRINT("    string href : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].href);
+        if (strlen(g_d2dserverlist_d2dserverlist[i].href) > 0) {
+          /* href ['string', 'This is the target URI, it can be specified as a Relative Reference or fully-qualified URI.'] */
+          oc_rep_set_text_string(d2dserverlist, href, g_d2dserverlist_d2dserverlist[i].href);
+          PRINT("    string href : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].href);
+        }
         oc_rep_object_array_end_item(d2dserverlist);
       }
     }
@@ -342,19 +344,23 @@ get_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* u
     /* property (array of objects) 'd2dserverlist' */
     PRINT("   Array of objects : '%s'\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist);
     oc_rep_set_array(root, d2dserverlist);
-    for (int i = 0; i < g_d2dserverlist_d2dserverlist_array_size; i++)
+    for (int i = 0; i < MAX_ARRAY; i++)
     {
-      oc_rep_object_array_begin_item(d2dserverlist);
-      /* di ['string', 'Format pattern according to IETF RFC 4122.'] */
-      oc_rep_set_text_string(d2dserverlist, di, g_d2dserverlist_d2dserverlist[i].di);
-      PRINT("    string di : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].di);
-      /* eps ['object[]', 'the OCF Endpoint information of the target Resource'] */
-    /* eps not handled */
+      if (strlen(g_d2dserverlist_d2dserverlist[i].di) > 0) {
+        oc_rep_object_array_begin_item(d2dserverlist);
+        /* di ['string', 'Format pattern according to IETF RFC 4122.'] */
+        oc_rep_set_text_string(d2dserverlist, di, g_d2dserverlist_d2dserverlist[i].di);
+        PRINT("    string di : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].di);
+        /* eps ['object[]', 'the OCF Endpoint information of the target Resource'] */
+      /* eps not handled */
 
-      /* href ['string', 'This is the target URI, it can be specified as a Relative Reference or fully-qualified URI.'] */
-      oc_rep_set_text_string(d2dserverlist, href, g_d2dserverlist_d2dserverlist[i].href);
-      PRINT("    string href : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].href);
-      oc_rep_object_array_end_item(d2dserverlist);
+        if (strlen(g_d2dserverlist_d2dserverlist[i].href) > 0) {
+          /* href ['string', 'This is the target URI, it can be specified as a Relative Reference or fully-qualified URI.'] */
+          oc_rep_set_text_string(d2dserverlist, href, g_d2dserverlist_d2dserverlist[i].href);
+          PRINT("    string href : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].href);
+        }
+        oc_rep_object_array_end_item(d2dserverlist);
+      }
     }
     oc_rep_close_array(root, d2dserverlist);
 
@@ -393,10 +399,11 @@ if_di_exist(char* di, int di_len)
 * current version just blanks the udn.
 */
 static bool
-remove_di(char* di)
+remove_di(char* di, int len)
 {
   for (int i = 0; i < MAX_ARRAY; i++) {
-    if (strncmp(g_d2dserverlist_d2dserverlist[i].di, di, strlen(di)) == 0) {
+    PRINT("   %s %s ", g_d2dserverlist_d2dserverlist[i].di, di);
+    if (strncmp(g_d2dserverlist_d2dserverlist[i].di, di, len) == 0) {
       strcpy(g_d2dserverlist_d2dserverlist[i].di, "");
       return true;
     }
@@ -567,7 +574,8 @@ delete_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void
       PRINT(" FOUND = TRUE \n");
 
       // TODO: also remove the resources that are registered..
-      remove_di(_di);
+      bool removed = remove_di(_di, _di_len);
+      PRINT(" Removed di: %s\n", btoa(removed));
     }
     else {
       // not in the list
@@ -628,6 +636,13 @@ register_resources(void)
   // no cloud registration.
   // only local device registration
   oc_add_resource(res_d2dserverlist);
+
+  // for testing delete...
+  //int retval = oc_cloud_add_resource(res_d2dserverlist);
+  //PRINT("   ADD resource: %d\n", retval);
+  
+
+
 }
 
 #ifdef OC_SECURITY
@@ -747,7 +762,7 @@ static bool is_vertical(char* resource_type)
   if (size_rt == 20 && strncmp(resource_type, "oic.wk.introspection", 20) == 0)
     return false;
   if (size_rt == 19 && strncmp(resource_type, "oic.r.d2dserverlist", 19) == 0)
-    return false;
+    return true; // return false;
   if (size_rt == 19 && strncmp(resource_type, "oic.r.coapcloudconf", 19) == 0)
       return false;
 
@@ -1210,7 +1225,6 @@ main(int argc, char* argv[])
   sigaction(SIGINT, &sa, NULL);
 #endif
 
-  PRINT("Used input file : \"../device_output/out_codegeneration_merged.swagger.json\"\n");
   PRINT("OCF Server name : \"cloud_proxy\"\n");
 
   /*

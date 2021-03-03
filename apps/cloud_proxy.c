@@ -766,6 +766,7 @@ get_local_resource_response(oc_client_response_t* data)
   print_rep(value_list, false);
 
   memcpy(delay_response->buffer, data->_payload, (int)data->_payload_len);
+  delay_response->len = data->_payload_len;
 
   oc_send_separate_response(delay_response, data->code);
  

@@ -47,6 +47,13 @@ port/linux/tests/*
 port/linux/obj/
 port/linux/onboarding_tool_creds/
 port/linux/smart_lock
+port/linux/client_certification_tests
+port/linux/cloud_client
+port/linux/cloud_proxy
+port/linux/introspectionclient
+port/linux/pki_certs/
+port/linux/server_certification_tests
+port/linux/server_rules
 port/windows/vs2015/.vs/
 port/windows/vs2015/Debug/
 port/windows/vs2015/Release/

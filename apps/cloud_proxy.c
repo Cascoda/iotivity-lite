@@ -894,6 +894,7 @@ discovery(const char* anchor, const char* uri, oc_string_array_t types,
       oc_resource_set_request_handler(new_resource, OC_DELETE, delete_resource, NULL);
       oc_resource_set_request_handler(new_resource, OC_GET, get_resource, NULL);
       oc_resource_set_request_handler(new_resource, OC_POST, post_resource, NULL);
+      oc_resource_set_discoverable(new_resource, false);
 
       oc_add_resource(new_resource);
 

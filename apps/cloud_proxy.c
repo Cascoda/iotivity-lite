@@ -789,7 +789,6 @@ get_local_resource_response(oc_client_response_t* data)
 static void
 get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_data)
 {
-  (void)request;
   (void)interfaces;
   (void) user_data;
   char query_as_string[MAX_URI_LENGTH * 2]="";
@@ -810,12 +809,8 @@ get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_d
   PRINT("      local udn: %s\n", local_udn);
   PRINT("      local url: %s\n", local_url);
   if (request->query_len > 0) {
-    PRINT("      query    : %s\n", request->query);
-  }
-  // create the query string
-  for (int i = 0; i < request->query_len; i++)
-  {
-    strcat(query_as_string, request->query);
+    strncpy(query_as_string, request->query, request->query_len);
+    PRINT("      query    : %s\n", query_as_string);
   }
 
   oc_set_separate_response_buffer(delay_response);
@@ -873,12 +868,8 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
   PRINT("      local udn: %s\n", local_udn);
   PRINT("      local url: %s\n", local_url);
   if (request->query_len > 0) {
-    PRINT("      query    : %s\n", request->query);
-  }
-  // create the query string
-  for (int i = 0; i < request->query_len; i++)
-  {
-    strcat(query_as_string, request->query);
+    strncpy(query_as_string, request->query, request->query_len);
+    PRINT("      query    : %s\n", query_as_string);
   }
 
   oc_set_separate_response_buffer(delay_response);

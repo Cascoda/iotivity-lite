@@ -94,8 +94,6 @@ volatile int quit = 0;          /* stop variable, used by handle_signal */
 #define MAX_URI_LENGTH (30)
 
 static oc_endpoint_t* discovered_server;
-//static oc_separate_response_t array_response;
-//static oc_string_t name; 
 
 static const char* cis = "coap+tcp://127.0.0.1:5683";
 static const char* auth_code = "test";
@@ -130,6 +128,7 @@ char g_d2dserverlist_di[MAX_PAYLOAD_STRING] = """"; /* current value of property
 static char* g_d2dserverlist_RESOURCE_ENDPOINT = "d2dserverlist"; /* used path for this resource */
 static char* g_d2dserverlist_RESOURCE_TYPE[MAX_STRING] = { "oic.r.d2dserverlist" }; /* rt value (as an array) */
 int g_d2dserverlist_nr_resource_types = 1;
+
 
 
 /**
@@ -786,6 +785,7 @@ get_local_resource_response(oc_client_response_t* data)
   PRINT(" RESPONSE: " );
   oc_parse_rep(data->_payload, (int) data->_payload_len, &value_list);
   print_rep(value_list, false);
+  free(value_list);
 
   memcpy(delay_response->buffer, data->_payload, (int)data->_payload_len);
   delay_response->len = data->_payload_len;
@@ -834,6 +834,10 @@ get_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_d
   PRINT("       DISPATCHED\n");
 }
 
+/**
+* Call back for the "POST" to the proxy device
+* note that the user data contains the delayed response information
+*/
 static void
 post_local_resource_response(oc_client_response_t* data)
 {
@@ -846,6 +850,7 @@ post_local_resource_response(oc_client_response_t* data)
   PRINT(" RESPONSE: ");
   oc_parse_rep(data->_payload, (int)data->_payload_len, &value_list);
   print_rep(value_list, false);
+  free(value_list);
 
   memcpy(delay_response->buffer, data->_payload, (int)data->_payload_len);
   delay_response->len = data->_payload_len;
@@ -856,8 +861,9 @@ post_local_resource_response(oc_client_response_t* data)
   free(delay_response);
 }
 
-
-
+/**
+* Call back for the "POST" to the proxy device
+*/
 static void
 post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_data)
 {
@@ -871,6 +877,9 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
   char local_url[MAX_URI_LENGTH * 2];
   char local_udn[OC_UUID_LEN * 2];
   oc_endpoint_t* local_server;
+  const uint8_t* payload = NULL;
+  size_t len = 0;
+  oc_content_format_t content_format;
 
   oc_separate_response_t* delay_response = NULL;
   delay_response = malloc(sizeof(oc_separate_response_t));
@@ -887,18 +896,24 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
     strncpy(query_as_string, request->query, request->query_len);
     PRINT("      query    : %s\n", query_as_string);
   }
-  PRINT("     REQUEST data: %s\n");
-  oc_parse_rep(request->_payload, (int)request->_payload_len, &value_list);
+ 
+  bool berr  =oc_get_request_payload_raw(request, &payload, &len, &content_format);
+  PRINT("      raw buffer ok: %s\n", btoa(berr));
+
+  int err = oc_parse_rep(payload, (int)len, &value_list);
+  PRINT("     REQUEST data: %d %d \n", (int) len, err);
   print_rep(value_list, false);
+  free(value_list);
+
+  PRINT("     REQUEST 2222: \n");
+  print_rep(request->request_payload, false);
 
   oc_set_separate_response_buffer(delay_response);
   oc_indicate_separate_response(request, delay_response);
 
   if (oc_init_post(local_url, local_server, query_as_string, &post_local_resource_response, LOW_QOS, delay_response)) {
-
-    oc_rep_encode_raw(request->_payload, request->_payload_len);
-
-
+    // copy over the data
+    oc_rep_encode_raw(payload, len);
     if (oc_do_post())
       PRINT("Sent POST request\n");
     else
@@ -909,9 +924,8 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
 
   PRINT("       DISPATCHED\n");
 
-  // delete the allocated memory in get_resource
-  // free(delay_response);
-
+  // clean up...
+  free(payload);
 }
 
 /**
@@ -930,6 +944,7 @@ delete_local_resource_response(oc_client_response_t* data)
   PRINT(" RESPONSE: ");
   oc_parse_rep(data->_payload, (int)data->_payload_len, &value_list);
   print_rep(value_list, false);
+  free(value_list);
 
   memcpy(delay_response->buffer, data->_payload, (int)data->_payload_len);
   delay_response->len = data->_payload_len;
@@ -1070,7 +1085,8 @@ discovery(const char* anchor, const char* uri, oc_string_array_t types,
       oc_resource_set_request_handler(new_resource, OC_DELETE, delete_resource, NULL);
       oc_resource_set_request_handler(new_resource, OC_GET, get_resource, NULL);
       oc_resource_set_request_handler(new_resource, OC_POST, post_resource, NULL);
-      oc_resource_set_discoverable(new_resource, false);
+      // TODO enable this again.
+      //oc_resource_set_discoverable(new_resource, false);
 
       oc_add_resource(new_resource);
 

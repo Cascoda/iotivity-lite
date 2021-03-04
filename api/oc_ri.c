@@ -817,6 +817,17 @@ oc_ri_invoke_coap_entity_handler(void *request, void *response, uint8_t *buffer,
 #if defined(OC_BLOCK_WISE)
     /* Free request_state cause it isn't used any more
      */
+
+#define keep_request_buffer 1
+#if defined (keep_request_buffer)
+    uint8_t* keep;
+    keep = malloc(payload_len);
+    memcpy(keep, payload, payload_len);
+    request_obj._payload = keep;
+#else
+    request_obj._payload = NULL;
+#endif
+
     oc_blockwise_free_request_buffer(*request_state);
     *request_state = NULL;
 #endif

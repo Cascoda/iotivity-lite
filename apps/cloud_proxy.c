@@ -865,6 +865,7 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
   (void)interfaces;
   (void) user_data;
 
+  oc_rep_t* value_list = NULL;
   char query_as_string[MAX_URI_LENGTH * 2] = "";
   char url[MAX_URI_LENGTH * 2];
   char local_url[MAX_URI_LENGTH * 2];
@@ -886,15 +887,18 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
     strncpy(query_as_string, request->query, request->query_len);
     PRINT("      query    : %s\n", query_as_string);
   }
+  PRINT("     REQUEST data: %s\n");
+  oc_parse_rep(request->_payload, (int)request->_payload_len, &value_list);
+  print_rep(value_list, false);
 
   oc_set_separate_response_buffer(delay_response);
   oc_indicate_separate_response(request, delay_response);
 
   if (oc_init_post(local_url, local_server, query_as_string, &post_local_resource_response, LOW_QOS, delay_response)) {
-    oc_rep_start_root_object();
-    oc_rep_set_boolean(root, state, true);
-    oc_rep_set_int(root, power, 55);
-    oc_rep_end_root_object();
+
+    oc_rep_encode_raw(request->_payload, request->_payload_len);
+
+
     if (oc_do_post())
       PRINT("Sent POST request\n");
     else
@@ -903,8 +907,10 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
   else
     PRINT("Could not init POST request\n");
 
-  //oc_do_get(local_url, local_server, query_as_string, &get_local_resource_response, LOW_QOS, delay_response);
   PRINT("       DISPATCHED\n");
+
+  // delete the allocated memory in get_resource
+  // free(delay_response);
 
 }
 
@@ -931,7 +937,7 @@ delete_local_resource_response(oc_client_response_t* data)
   oc_send_separate_response(delay_response, data->code);
 
   // delete the allocated memory in get_resource
-  free(delay_response);
+  //free(delay_response);
 }
 
 /**

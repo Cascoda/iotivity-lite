@@ -37,6 +37,9 @@ check oc_config.h and make sure OC_STORAGE is defined if OC_SECURITY is defined.
 #include "security/oc_store.h"
 #include "security/oc_tls.h"
 #include "security/oc_sdi.h"
+
+#include "oc_cloud.h"
+#include "oc_rep.h"
 #include <stdlib.h>
 
 OC_MEMB(oc_discovery_s, oc_discovery_cb_t, 1);
@@ -2516,8 +2519,8 @@ ace_del(oc_client_response_t *data)
   oc_acedel_ctx_t *p = (oc_acedel_ctx_t *)data->user_data;
 
   if (data->code >= OC_STATUS_BAD_REQUEST) {
-    free_acedel_ctx(p, -1);
-    return;
+free_acedel_ctx(p, -1);
+return;
   }
 
   p->switch_dos = switch_dos(p->device, OC_DOS_RFNOP, acedel_RFNOP, p);
@@ -2527,19 +2530,19 @@ ace_del(oc_client_response_t *data)
 }
 
 static void
-acedel_RFPRO(int status, void *data)
+acedel_RFPRO(int status, void* data)
 {
   if (!is_item_in_list(oc_acedel_ctx_l, data)) {
     return;
   }
 
-  oc_acedel_ctx_t *p = (oc_acedel_ctx_t *)data;
+  oc_acedel_ctx_t* p = (oc_acedel_ctx_t*)data;
 
   p->switch_dos = NULL;
   if (status >= 0) {
     char query[64];
     snprintf(query, 64, "aceid=%d", p->aceid);
-    oc_endpoint_t *ep = oc_obt_get_secure_endpoint(p->device->endpoint);
+    oc_endpoint_t* ep = oc_obt_get_secure_endpoint(p->device->endpoint);
     if (oc_do_delete("/oic/sec/acl2", ep, query, &ace_del, HIGH_QOS, p)) {
       return;
     }
@@ -2549,19 +2552,19 @@ acedel_RFPRO(int status, void *data)
 }
 
 int
-oc_obt_delete_ace_by_aceid(oc_uuid_t *uuid, int aceid, oc_obt_status_cb_t cb,
-                           void *data)
+oc_obt_delete_ace_by_aceid(oc_uuid_t* uuid, int aceid, oc_obt_status_cb_t cb,
+  void* data)
 {
   if (!oc_obt_is_owned_device(uuid)) {
     return -1;
   }
 
-  oc_device_t *device = oc_obt_get_owned_device_handle(uuid);
+  oc_device_t* device = oc_obt_get_owned_device_handle(uuid);
   if (!device) {
     return -1;
   }
 
-  oc_acedel_ctx_t *p = oc_memb_alloc(&oc_acedel_ctx_m);
+  oc_acedel_ctx_t* p = oc_memb_alloc(&oc_acedel_ctx_m);
   if (!p) {
     return -1;
   }
@@ -2584,7 +2587,7 @@ oc_obt_delete_ace_by_aceid(oc_uuid_t *uuid, int aceid, oc_obt_status_cb_t cb,
   return 0;
 }
 
-oc_sec_creds_t *
+oc_sec_creds_t*
 oc_obt_retrieve_own_creds(void)
 {
   return oc_sec_get_creds(0);
@@ -2593,12 +2596,90 @@ oc_obt_retrieve_own_creds(void)
 int
 oc_obt_delete_own_cred_by_credid(int credid)
 {
-  oc_sec_cred_t *cred = oc_sec_get_cred_by_credid(credid, 0);
+  oc_sec_cred_t* cred = oc_sec_get_cred_by_credid(credid, 0);
   if (cred) {
     oc_sec_remove_cred(cred, 0);
     return 0;
   }
   return -1;
+}
+
+
+int oc_obt_update_cloud_conf_device(oc_uuid_t* uuid,
+  const char* cis, const char* auth_code,
+  const char* sid, const char* apn,
+  oc_response_handler_t cb, void* user_data)
+{
+  // TODO get the URL from the device
+  char url[200] = "/CoapCloudConfResURI";
+
+  //oc_device_t* device = oc_obt_get_cached_device_handle(uuid);
+  oc_device_t* device = oc_obt_get_owned_device_handle(uuid);
+  if (device == NULL)
+  {
+    char di[OC_UUID_LEN];
+    oc_uuid_to_str(uuid, di, OC_UUID_LEN);
+    PRINT("Could not find device from udn %s\n", di);
+    return -1;
+  }
+  oc_endpoint_t* ep = oc_obt_get_secure_endpoint(device->endpoint);
+  if (ep == NULL) {
+    PRINT("Could not find ep from device \n");
+    return -1;
+  }
+
+
+  if (oc_init_post(url, ep, NULL, cb, LOW_QOS, user_data)) {
+    oc_rep_start_root_object();
+    oc_rep_set_text_string(root, cis, cis);
+    oc_rep_set_text_string(root, auth_code, auth_code);
+    oc_rep_set_text_string(root, sid, sid);
+    oc_rep_set_text_string(root, apn, apn);
+    oc_rep_end_root_object();
+    if (oc_do_post())
+      PRINT("Sent POST request\n");
+    else {
+      PRINT("Could not send POST request\n");
+      return -1;
+    }
+  }
+  else {
+    PRINT("Could not init POST request\n");
+    return -1;
+  }
+
+  return 0;
+}
+
+int oc_obt_retrieve_cloud_conf_device(oc_uuid_t* uuid,
+  const char* cis, const char* auth_code,
+  const char* sid, const char* apn,
+  oc_response_handler_t cb, void* user_data)
+{
+  // TODO get the URL from the device
+  char url[200] = "/CoapCloudConfResURI";
+  int err = 0;
+
+  //oc_device_t* device = oc_obt_get_cached_device_handle(uuid);
+  oc_device_t* device = oc_obt_get_owned_device_handle(uuid);
+  if (device == NULL)
+  {
+    char di[OC_UUID_LEN];
+    oc_uuid_to_str(uuid, di, OC_UUID_LEN);
+    PRINT("Could not find device from udn %s\n", di);
+    return -1;
+  }
+  oc_endpoint_t* ep = oc_obt_get_secure_endpoint(device->endpoint);
+  if (ep == NULL) {
+    PRINT("Could not find ep from device \n");
+    return -1;
+  }
+
+  if (oc_do_get(url, ep, NULL, cb, LOW_QOS, user_data)) {
+    err = -1;
+  }
+
+  return err;
 }
 
 void

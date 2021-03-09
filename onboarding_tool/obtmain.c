@@ -70,6 +70,25 @@ static struct timespec ts;
 #endif
 static int quit;
 
+
+/**
+* function to print the returned cbor as JSON
+*
+*/
+void
+print_rep(oc_rep_t* rep, bool pretty_print)
+{
+  char* json;
+  size_t json_size;
+  json_size = oc_rep_to_json(rep, NULL, 0, pretty_print);
+  json = (char*)malloc(json_size + 1);
+  oc_rep_to_json(rep, json, json_size + 1, pretty_print);
+  printf("%s\n", json);
+  free(json);
+}
+
+
+
 static void
 display_menu(void)
 {
@@ -107,6 +126,9 @@ display_menu(void)
   PRINT("[23] Provision role certificate\n");
 #endif /* OC_PKI */
   PRINT("[24] Set security domain info\n");
+  PRINT("-----------------------------------------------\n");
+  PRINT("[30] Provision cloud config info\n");
+  PRINT("[31] RETRIEVE cloud config info\n");
   PRINT("-----------------------------------------------\n");
 #ifdef OC_PKI
   PRINT("[96] Install new manufacturer trust anchor\n");
@@ -1585,6 +1607,7 @@ install_trust_anchor(void)
 }
 #endif /* OC_PKI */
 
+
 static void
 set_sd_info()
 {
@@ -1596,6 +1619,150 @@ set_sd_info()
   SCANF("%d", &priv);
   oc_obt_set_sd_info(name, priv);
 }
+
+//#ifdef CLOUD
+
+static void
+post_response_cloud_config(oc_client_response_t* data)
+{
+  PRINT("post_response_cloud_config:\n");
+  if (data->code == OC_STATUS_CHANGED)
+    PRINT("POST response: CHANGED\n");
+  else if (data->code == OC_STATUS_CREATED)
+    PRINT("POST response: CREATED\n");
+  else
+    PRINT("POST response code %d\n", data->code);
+
+  if (data->payload != NULL) {
+    print_rep(data->payload, false);
+  }
+}
+
+
+static void
+set_cloud_info(void)
+{
+  //char name[64]
+  char cis[64] = "coap+tcp://127.0.0.1:5683";
+  char auth_code[64] = "test";
+  char sid[64] = "00000000-0000-0000-0000-000000000001";
+  char apn[64] = "test";
+  char di[OC_UUID_LEN];
+  oc_uuid_t device_uuid;
+
+  if (oc_list_length(owned_devices) == 0) {
+    PRINT("\n\nPlease Re-Discover Owned devices\n");
+    return;
+  }
+
+  device_handle_t *devices[MAX_NUM_DEVICES];
+  device_handle_t *device = (device_handle_t *)oc_list_head(owned_devices);
+  int i = 0, d = 0, c1;
+
+  PRINT("\nMy Devices:\n");
+  while (device != NULL) {
+    devices[i] = device;
+    oc_uuid_to_str(&device->uuid, di, OC_UUID_LEN);
+    PRINT("[%d]: %s - %s\n", i, di, device->device_name);
+    i++;
+    device = device->next;
+  }
+  PRINT("\nSelect device to configure: ");
+  SCANF("%d", &c1);
+  if (c1 < 0 || c1 >= i) {
+    PRINT("ERROR: Invalid selection\n");
+    return;
+  }
+
+  i = 0;
+  device = (device_handle_t*)oc_list_head(owned_devices);
+  while (device != NULL) {
+    devices[i] = device;
+    oc_uuid_to_str(&device->uuid, di, OC_UUID_LEN);
+    oc_str_to_uuid(di, &device_uuid);
+    if (c1 == i) {
+      PRINT("configuring: [%d]: %s - %s\n", i, di, device->device_name);
+      break;
+    }
+    i++;
+    device = device->next;
+  }
+
+  PRINT("\nEnter cis: ");
+  SCANF("%63s", cis);
+  PRINT("\nEnter auth_code: ");
+  SCANF("%63s", auth_code);
+  PRINT("\nEnter sid: ");
+  SCANF("%63s", sid);
+  PRINT("\nEnter apn: ");
+  SCANF("%63s", apn);
+
+  otb_mutex_lock(app_sync_lock);
+ 
+    oc_obt_update_cloud_conf_device(&device_uuid,
+      cis, auth_code, sid, apn,
+      post_response_cloud_config, NULL);
+  
+  otb_mutex_unlock(app_sync_lock);
+}
+
+
+static void
+get_cloud_info(void)
+{
+  char di[OC_UUID_LEN];
+  oc_uuid_t device_uuid;
+
+  if (oc_list_length(owned_devices) == 0) {
+    PRINT("\n\nPlease Re-Discover Owned devices\n");
+    return;
+  }
+
+  device_handle_t* devices[MAX_NUM_DEVICES];
+  device_handle_t* device = (device_handle_t*)oc_list_head(owned_devices);
+  int i = 0, d = 0, c1;
+
+  PRINT("\nMy Devices:\n");
+  while (device != NULL) {
+    devices[i] = device;
+    oc_uuid_to_str(&device->uuid, di, OC_UUID_LEN);
+    PRINT("[%d]: %s - %s\n", i, di, device->device_name);
+    i++;
+    device = device->next;
+  }
+  PRINT("\nSelect device to retrieve config from: ");
+  SCANF("%d", &c1);
+  if (c1 < 0 || c1 >= i) {
+    PRINT("ERROR: Invalid selection\n");
+    return;
+  }
+
+  i = 0;
+  device = (device_handle_t*)oc_list_head(owned_devices);
+  while (device != NULL) {
+    devices[i] = device;
+    oc_uuid_to_str(&device->uuid, di, OC_UUID_LEN);
+    oc_str_to_uuid(di, &device_uuid);
+    if (c1 == i) {
+      PRINT("retrieving: [%d]: %s - %s\n", i, di, device->device_name);
+      break;
+    }
+    i++;
+    device = device->next;
+  }
+
+  otb_mutex_lock(app_sync_lock);
+
+  oc_obt_retrieve_cloud_conf_device(&device_uuid,
+    post_response_cloud_config, NULL);
+
+  otb_mutex_unlock(app_sync_lock);
+}
+
+
+
+//#endif
+
 
 void
 factory_presets_cb(size_t device, void *data)
@@ -1844,6 +2011,12 @@ main(void)
 #endif
     case 24:
       set_sd_info();
+      break;
+    case 30:
+      get_cloud_info();
+      break;
+  case 31:
+      set_cloud_info();
       break;
 #ifdef OC_PKI
     case 96:

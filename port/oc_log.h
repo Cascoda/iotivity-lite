@@ -171,7 +171,7 @@ extern "C"
 #else  /* ! __ANDROID */
 #define OC_LOG(level, ...)                                                     \
   do {                                                                         \
-    PRINT("%s: %s <%s:%d>: ", level, "", __func__, __LINE__);            \
+    PRINT("%s: %s <%s:%d>: ", level, __FILE__, __func__, __LINE__);            \
     PRINT(__VA_ARGS__);                                                        \
     PRINT("\n");                                                               \
   } while (0)
@@ -192,7 +192,7 @@ extern "C"
 
 #define OC_DBG(...)                                                     \
   do {                                                                         \
-    PRINT("%s: %s <%s:%d>: ", "DEBUG", __FILE__, __func__, __LINE__);            \
+    PRINT("%s: <%s:%d>: ", "DEBUG", __func__, __LINE__);            \
     PRINT(__VA_ARGS__);                                                        \
     PRINT("\n");                                                               \
   } while (0)

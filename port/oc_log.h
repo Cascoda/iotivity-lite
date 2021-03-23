@@ -171,26 +171,32 @@ extern "C"
 #else  /* ! __ANDROID */
 #define OC_LOG(level, ...)                                                     \
   do {                                                                         \
-    PRINT("%s: %s <%s:%d>: ", level, __FILE__, __func__, __LINE__);            \
+    PRINT("%s: %s <%s:%d>: ", level, "", __func__, __LINE__);            \
     PRINT(__VA_ARGS__);                                                        \
     PRINT("\n");                                                               \
   } while (0)
 #define OC_LOGipaddr(endpoint)                                                 \
   do {                                                                         \
-    PRINT("DEBUG: %s <%s:%d>: ", __FILE__, __func__, __LINE__);                \
+    PRINT("DEBUG: %s <%s:%d>: ", "", __func__, __LINE__);                \
     PRINTipaddr(endpoint);                                                     \
     PRINT("\n");                                                               \
   } while (0)
 #define OC_LOGbytes(bytes, length)                                             \
   do {                                                                         \
-    PRINT("DEBUG: %s <%s:%d>: ", __FILE__, __func__, __LINE__);                \
+    PRINT("DEBUG: %s <%s:%d>: ", "", __func__, __LINE__);                \
     uint16_t i;                                                                \
     for (i = 0; i < length; i++)                                               \
       PRINT(" %02X", bytes[i]);                                                \
     PRINT("\n");                                                               \
   } while (0)
+
+#define OC_DBG(...)                                                     \
+  do {                                                                         \
+    PRINT("%s: %s <%s:%d>: ", "DEBUG", __FILE__, __func__, __LINE__);            \
+    PRINT(__VA_ARGS__);                                                        \
+    PRINT("\n");                                                               \
+  } while (0)
 #endif /* __ANDROID__ */
-#define OC_DBG(...) OC_LOG("DEBUG", __VA_ARGS__)
 #define OC_WRN(...) OC_LOG("WARNING", __VA_ARGS__)
 #define OC_ERR(...) OC_LOG("ERROR", __VA_ARGS__)
 #else

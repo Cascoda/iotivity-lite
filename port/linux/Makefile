@@ -167,6 +167,10 @@ ifeq ($(SWUPDATE),1)
 	export SWUPDATE
 endif
 
+ifeq ($(WRAP_MALLOC), 1)
+	EXTRA_CFLAGS += -Wl,--wrap=malloc
+endif
+
 ifneq ($(SECURE),0)
 	SRC += $(addprefix ../../security/,oc_acl.c oc_cred.c oc_doxm.c oc_pstat.c oc_tls.c oc_svr.c oc_store.c oc_pki.c oc_certs.c oc_sp.c oc_keypair.c oc_csr.c oc_roles.c oc_ael.c oc_audit.c oc_sdi.c oc_oscore_engine.c oc_oscore_crypto.c oc_oscore_context.c)
 	SRC_COMMON += $(addprefix $(MBEDTLS_DIR)/library/,${DTLS})

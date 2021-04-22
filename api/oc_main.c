@@ -91,9 +91,9 @@ static size_t _OC_MTU_SIZE = OC_INOUT_BUFFER_SIZE;
 static size_t _OC_MTU_SIZE = 2048 + COAP_MAX_HEADER_SIZE;
 #endif /* !OC_OSCORE */
 #ifdef OC_APP_DATA_BUFFER_SIZE
-static size_t _OC_MAX_APP_DATA_SIZE = 8192;
+static size_t _OC_MAX_APP_DATA_SIZE = 7168;
 #else                                /* OC_APP_DATA_BUFFER_SIZE */
-static size_t _OC_MAX_APP_DATA_SIZE = 8192;
+static size_t _OC_MAX_APP_DATA_SIZE = 7168;
 #endif                               /* !OC_APP_DATA_BUFFER_SIZE */
 static size_t _OC_BLOCK_SIZE = 1024; // FIX
 

@@ -96,6 +96,7 @@ volatile int quit = 0;          /* stop variable, used by handle_signal */
 static oc_endpoint_t* discovered_server;
 
 static const char* cis = "coap+tcp://127.0.0.1:5683";
+//static const char* cis = "coap+tcp://128.0.0.4:5683";
 static const char* auth_code = "test";
 static const char* sid = "00000000-0000-0000-0000-000000000001";
 static const char* apn = "plgd";
@@ -103,7 +104,7 @@ static const char* device_name = "CloudProxy";
 
 
 /* global property variables for path: "d2dserverlist" */
-static char* g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist = "d2dserverlist"; /* the name for the attribute */
+static char* g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist = "dis"; /* the name for the attribute */
 
 /* array d2dserverlist  This Property maintains the list of the D2D Device's connection info i.e. {Device ID, Resource URI, end points} */
 /* array of objects 
@@ -313,58 +314,34 @@ get_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* u
     PRINT("   Adding Baseline info\n");
     oc_process_baseline_interface(request->resource);
 
-    /* property (array of objects) 'd2dserverlist' */
-    PRINT("   Array of objects : '%s'\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist);
-    oc_rep_set_array(root, d2dserverlist);
+    /* property (array of strings) 'dis' */
+    PRINT("   Array of strings : '%s'\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist);
+    oc_rep_set_key(oc_rep_object(root), "dis");
+    oc_rep_begin_array(oc_rep_object(root), dis);
     for (int i = 0; i < MAX_ARRAY; i++)
     {
       if (strlen(g_d2dserverlist_d2dserverlist[i].di) > 0) {
-        oc_rep_object_array_begin_item(d2dserverlist);
-        /* di ['string', 'Format pattern according to IETF RFC 4122.'] */
-
-        oc_rep_set_text_string(d2dserverlist, di, g_d2dserverlist_d2dserverlist[i].di);
-        PRINT("    string di : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].di);
-        /* eps ['object[]', 'the OCF Endpoint information of the target Resource'] */
-        /* eps not handled yet */
-
-        if (strlen(g_d2dserverlist_d2dserverlist[i].href) > 0) {
-          /* href ['string', 'This is the target URI, it can be specified as a Relative Reference or fully-qualified URI.'] */
-          oc_rep_set_text_string(d2dserverlist, href, g_d2dserverlist_d2dserverlist[i].href);
-          PRINT("    string href : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].href);
-        }
-        oc_rep_object_array_end_item(d2dserverlist);
+        oc_rep_add_text_string(dis, g_d2dserverlist_d2dserverlist[i].di);
       }
     }
-    oc_rep_close_array(root, d2dserverlist);
-
+    oc_rep_end_array(oc_rep_object(root), dis);
+    oc_rep_end_root_object();
     break;
   case OC_IF_RW:
 
     /* property (array of objects) 'd2dserverlist' */
-    PRINT("   Array of objects : '%s'\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist);
-    oc_rep_set_array(root, d2dserverlist);
+    PRINT("   Array of strings : '%s'\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist);
+    oc_rep_set_key(oc_rep_object(root), "dis");
+    oc_rep_begin_array(oc_rep_object(root), dis);
     for (int i = 0; i < MAX_ARRAY; i++)
     {
       if (strlen(g_d2dserverlist_d2dserverlist[i].di) > 0) {
-        oc_rep_object_array_begin_item(d2dserverlist);
-        /* di ['string', 'Format pattern according to IETF RFC 4122.'] */
-        oc_rep_set_text_string(d2dserverlist, di, g_d2dserverlist_d2dserverlist[i].di);
-        PRINT("    string di : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].di);
-        /* eps ['object[]', 'the OCF Endpoint information of the target Resource'] */
-      /* eps not handled */
-
-        if (strlen(g_d2dserverlist_d2dserverlist[i].href) > 0) {
-          /* href ['string', 'This is the target URI, it can be specified as a Relative Reference or fully-qualified URI.'] */
-          oc_rep_set_text_string(d2dserverlist, href, g_d2dserverlist_d2dserverlist[i].href);
-          PRINT("    string href : %d %s\n", i, g_d2dserverlist_d2dserverlist[i].href);
-        }
-        oc_rep_object_array_end_item(d2dserverlist);
+        oc_rep_add_text_string(dis, g_d2dserverlist_d2dserverlist[i].di);
       }
     }
-    oc_rep_close_array(root, d2dserverlist);
-
+    oc_rep_end_array(oc_rep_object(root), dis);
+    oc_rep_end_root_object();
     break;
-
   default:
     break;
   }
@@ -401,7 +378,7 @@ static bool
 remove_di(char* di, int len)
 {
   for (int i = 0; i < MAX_ARRAY; i++) {
-    PRINT("   %s %s ", g_d2dserverlist_d2dserverlist[i].di, di);
+    PRINT("   %s %.*s ", g_d2dserverlist_d2dserverlist[i].di, len, di);
     if (strncmp(g_d2dserverlist_d2dserverlist[i].di, di, len) == 0) {
       strcpy(g_d2dserverlist_d2dserverlist[i].di, "");
       return true;
@@ -419,6 +396,8 @@ remove_di(char* di, int len)
 * Resource Description:
 * The Mediator provisions the D2DServerList Resource with Device ID of the D2D Device. When the Cloud Proxy receives this request it retrieves '/oic/res' of the D2D Device, and then The Cloud Proxy completes a new entry of 'd2dserver' object with the contents of the RETRIEVE Response and adds it to D2DServerList Resource.
 *
+* /d2dserverlist?di=00000000-0000-0000-0000-000000000001
+* 
 * @param request the request representation.
 * @param interfaces the used interfaces during the request.
 * @param user_data the supplied user data.
@@ -428,113 +407,68 @@ post_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* 
 {
   (void)interfaces;
   (void)user_data;
-  bool error_state = false;
+  bool error_state = true;
   PRINT("-- Begin post_d2dserverlist:\n");
   oc_rep_t* rep = request->request_payload;
 
-  /* loop over the request document for each required input field to check if all required input fields are present */
-  bool var_in_request = false;
-  rep = request->request_payload;
-  while (rep != NULL) {
-    if (strcmp(oc_string(rep->name), g_d2dserverlist_RESOURCE_PROPERTY_NAME_di) == 0) {
-      var_in_request = true;
-    }
-    rep = rep->next;
-  }
-  if (var_in_request == false)
-  {
-    error_state = true;
-    PRINT(" required property: 'di' not in request\n");
-  }
-  if (g_d2dserverlist_d2dserverlist_array_size >= MAX_ARRAY)
-  {
-    error_state = true;
-    PRINT(" array full: MAX array size %d\n", g_d2dserverlist_d2dserverlist_array_size);
-  }
+  // di is a query param, copy from DELETE.
+  bool stored = false;
+  char* _di = NULL; /* not null terminated  */
 
-
-  /* loop over the request document to check if all inputs are ok */
-  rep = request->request_payload;
-  while (rep != NULL) {
-    PRINT("key: (check) %s \n", oc_string(rep->name));
-
-    error_state = check_on_readonly_common_resource_properties(rep->name, error_state);
-    if (strcmp(oc_string(rep->name), g_d2dserverlist_RESOURCE_PROPERTY_NAME_di) == 0) {
-      /* property "di" of type string exist in payload */
-      if (rep->type != OC_REP_STRING) {
-        error_state = true;
-        PRINT("   property 'di' is not of type string %d \n", rep->type);
-      }
-      if (strlen(oc_string(rep->value.string)) >= (MAX_PAYLOAD_STRING - 1))
+  int _di_len = oc_get_query_value(request, "di", &_di);
+  if (_di_len != -1) {
+    /* input check  ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$ */
+    PRINT(" query value 'di': %.*s\n", _di_len, _di);
+    if (if_di_exist(_di, _di_len) == false) {
+      // di value is not listed yet, so add it
+      strncpy(g_d2dserverlist_di, _di, _di_len);
+      PRINT(" New di %s\n", g_d2dserverlist_di);
+      error_state = false;
+      for (int i = 0; i < MAX_ARRAY; i++)
       {
-        error_state = true;
-        PRINT("   property 'di' is too long %d expected: MAX_PAYLOAD_STRING-1 \n", (int)strlen(oc_string(rep->value.string)));
+        if (strlen(g_d2dserverlist_d2dserverlist[i].di) == 0)
+        {
+          strncpy(g_d2dserverlist_d2dserverlist[i].di, g_d2dserverlist_di, MAX_PAYLOAD_STRING - 1);
+          // TODO : initiate a new scan of the network so that the URLS are added to the cloud.
+          stored = true;
+          PRINT(" stored \n");
+          break;
+        }
       }
-      if (if_di_exist(oc_string(rep->value.string), (int)strlen(oc_string(rep->value.string)))) {
-        error_state = true;
-        PRINT("   property 'di' exist %s \n", oc_string(rep->value.string));
-      }
-
     }
-    rep = rep->next;
   }
+
   /* if the input is ok, then process the input document and assign the global variables */
   if (error_state == false)
   {
-    bool stored = false;
-    switch (interfaces) {
-    default: {
-      /* loop over all the properties in the input document */
-      oc_rep_t* rep = request->request_payload;
-      while (rep != NULL) {
-        PRINT("key: (assign) %s \n", oc_string(rep->name));
-        /* no error: assign the variables */
+      /* set the response */
+      PRINT("Set response \n");
+      oc_rep_start_root_object();
 
-        if (strcmp(oc_string(rep->name), g_d2dserverlist_RESOURCE_PROPERTY_NAME_di) == 0) {
-          /* assign "di" */
-          PRINT("  property 'di' : %s\n", oc_string(rep->value.string));
-          // set the return value 
-          strncpy(g_d2dserverlist_di, oc_string(rep->value.string), MAX_PAYLOAD_STRING - 1);
-          for (int i = 0; i < MAX_ARRAY; i++)
-          {
-            if (strlen(g_d2dserverlist_d2dserverlist[g_d2dserverlist_d2dserverlist_array_size].di) == 0)
-            {
-              strncpy(g_d2dserverlist_d2dserverlist[i].di, g_d2dserverlist_di, MAX_PAYLOAD_STRING - 1);
+      /* property (array of objects) 'd2dserverlist' */
+      PRINT("   Array of strings : '%s'\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_d2dserverlist);
 
-              // TODO : initiate a new scan of the network so that the URLS are added to the cloud.
-
-              stored = true;
-            }
-          }
-          rep = rep->next;
-        }
-        /* set the response */
-        PRINT("Set response \n");
-        oc_rep_start_root_object();
-        /*oc_process_baseline_interface(request->resource); */
-
-        PRINT("   %s : %s\n", g_d2dserverlist_RESOURCE_PROPERTY_NAME_di, g_d2dserverlist_di);
-        oc_rep_set_text_string(root, di, g_d2dserverlist_di);
-
-        oc_rep_end_root_object();
-        /* TODO: ACTUATOR add here the code to talk to the HW if one implements an actuator.
-         one can use the global variables as input to those calls
-         the global values have been updated already with the data from the request */
-        if (stored == true) {
-          oc_send_response(request, OC_STATUS_CHANGED);
-        }
-        else {
-          PRINT("MAX array exceeded, not stored, returing error \n");
-          oc_send_response(request, OC_STATUS_INTERNAL_SERVER_ERROR);
+      oc_rep_set_key(oc_rep_object(root), "dis");
+      oc_rep_begin_array(oc_rep_object(root), dis);
+      for (int i = 0; i < MAX_ARRAY; i++)
+      {
+        if (strlen(g_d2dserverlist_d2dserverlist[i].di) > 0) {
+          oc_rep_add_text_string(dis, g_d2dserverlist_d2dserverlist[i].di);
         }
       }
+      oc_rep_end_array(oc_rep_object(root), dis);
+      oc_rep_end_root_object();
+      if (stored == true) {
+        oc_send_response(request, OC_STATUS_CHANGED);
+      }
+      else {
+        PRINT("MAX array exceeded, not stored, returing error \n");
+        oc_send_response(request, OC_STATUS_INTERNAL_SERVER_ERROR);
+      }
     }
-   }
-  }
   else {
     PRINT("  Returning Error \n");
     /* TODO: add error response, if any */
-    //oc_send_response(request, OC_STATUS_NOT_MODIFIED);
     oc_send_response(request, OC_STATUS_BAD_REQUEST);
   }
   PRINT("-- End post_d2dserverlist\n");
@@ -563,10 +497,8 @@ delete_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void
   if (_di_len != -1) {
     bool query_ok = false;
     /* input check  ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$ */
-
     if (query_ok == false) error_state = true;
 
-    /* TODO: use the query value to tailer the response*/
     PRINT(" query value 'di': %.*s\n", _di_len, _di);
     if (if_di_exist(_di, _di_len)) {
       // remove it
@@ -580,8 +512,6 @@ delete_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void
       // not in the list
       error_state = true;
     }
-
-    /* TODO: use the query value to tailer the response*/
   }
   if (error_state == false) {
     oc_send_response(request, OC_STATUS_OK);
@@ -707,9 +637,6 @@ initialize_variables(void)
   /* initialize global variables for resource "d2dserverlist" */
   /* initialize array "d2dserverlist" : This Property maintains the list of the D2D Device's connection info i.e. {Device ID, Resource URI, end points} */
   memset((void*)&g_d2dserverlist_d2dserverlist, 0, sizeof(struct _d2dserverlist_d2dserverlist_t));
-  //strncpy(g_d2dserverlist_d2dserverlist[0].di, "", MAX_PAYLOAD_STRING - 1);
-  //strncpy(g_d2dserverlist_d2dserverlist[0].href, "", MAX_PAYLOAD_STRING - 1);
-
   g_d2dserverlist_d2dserverlist_array_size = 0;
 
   strcpy(g_d2dserverlist_di, "");  /* current value of property "di" Format pattern according to IETF RFC 4122. */
@@ -733,7 +660,9 @@ static bool is_vertical(char* resource_type)
 
   // these should be false, but they are in the clear, so usefull for debugging.
   if (size_rt == 10 && strncmp(resource_type, "oic.wk.res", 10) == 0)
-    return true;
+    return false;
+
+  // these should be there, they are mandated
   if (size_rt == 8 && strncmp(resource_type, "oic.wk.p", 8) == 0)
     return true;
   if (size_rt == 8 && strncmp(resource_type, "oic.wk.d", 8) == 0)
@@ -760,10 +689,11 @@ static bool is_vertical(char* resource_type)
     return false;
   if (size_rt == 20 && strncmp(resource_type, "oic.wk.introspection", 20) == 0)
     return false;
+  // add the d2d serverlist
   if (size_rt == 19 && strncmp(resource_type, "oic.r.d2dserverlist", 19) == 0)
     return true; // return false;
   if (size_rt == 19 && strncmp(resource_type, "oic.r.coapcloudconf", 19) == 0)
-      return false;
+    return false;
 
   return true;
 }
@@ -925,7 +855,7 @@ post_resource(oc_request_t* request, oc_interface_mask_t interfaces, void* user_
   PRINT("       DISPATCHED\n");
 
   // clean up...
-  free(payload);
+  //free(payload);
 }
 
 /**
@@ -1226,9 +1156,6 @@ main(int argc, char* argv[])
     apn = argv[5];
     PRINT("apn: %s\n", argv[5]);
   }
-
-
-
 
 #ifdef WIN32
   /* windows specific */

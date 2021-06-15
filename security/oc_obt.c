@@ -2652,13 +2652,12 @@ int oc_obt_update_cloud_conf_device(oc_uuid_t* uuid,
 }
 
 int oc_obt_retrieve_cloud_conf_device(oc_uuid_t* uuid,
-  const char* cis, const char* auth_code,
-  const char* sid, const char* apn,
   oc_response_handler_t cb, void* user_data)
 {
   // TODO get the URL from the device
   char url[200] = "/CoapCloudConfResURI";
   int err = 0;
+
 
   //oc_device_t* device = oc_obt_get_cached_device_handle(uuid);
   oc_device_t* device = oc_obt_get_owned_device_handle(uuid);

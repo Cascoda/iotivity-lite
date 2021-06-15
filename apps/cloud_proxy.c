@@ -47,6 +47,20 @@
 *     if input data is correct
 *       updates the global variables
 *
+*
+* PKI SECURITY
+*  to install a certificate use MANUFACTORER_PKI compile option
+*  - requires to have the header file"pki_certs.h"
+*  - this include file can be created with the pki.sh tool in the device builder chain.
+*    the sh script creates a Kyrio test certificate with a limited life time.
+*    products should not have test certificates.
+*    Hence this example is being build without the manufactorer certificate by default.
+*
+* compile flag PROXY_ALL
+*   this flag enables that all devices on the network will be proxied.
+*
+* building on linux (in port/linux):
+* make cloud_proxy CLOUD=1 CLIENT=1
 */
 /*
  tool_version          : 20200103
@@ -56,6 +70,7 @@
 */
 
 #include "oc_api.h"
+#include "oc_pki.h"
 #include "port/oc_clock.h"
 #include <signal.h>
 
@@ -65,6 +80,9 @@
 #if defined(OC_IDD_API)
 #include "oc_introspection.h"
 #endif
+
+/* default behaviour: proxy all devices on the network */
+#define PROXY_ALL
 
 #ifdef __linux__
 /* linux specific code */
@@ -93,7 +111,9 @@ static CRITICAL_SECTION cs;     /* event loop variable */
 volatile int quit = 0;          /* stop variable, used by handle_signal */
 #define MAX_URI_LENGTH (30)
 
-static oc_endpoint_t* discovered_server;
+#define MAX_DISCOVERED_SERVER 100
+static oc_endpoint_t* discovered_server[MAX_DISCOVERED_SERVER];
+static int discovered_server_count = 0;
 
 static const char* cis = "coap+tcp://127.0.0.1:5683";
 //static const char* cis = "coap+tcp://128.0.0.4:5683";
@@ -122,13 +142,16 @@ struct _d2dserverlist_d2dserverlist_t g_d2dserverlist_d2dserverlist[MAX_ARRAY];
 int g_d2dserverlist_d2dserverlist_array_size = 0;
 
 
-static char* g_d2dserverlist_RESOURCE_PROPERTY_NAME_di = "di"; /* the name for the attribute */
+//static char* g_d2dserverlist_RESOURCE_PROPERTY_NAME_di = "di"; /* the name for the attribute */
 char g_d2dserverlist_di[MAX_PAYLOAD_STRING] = """"; /* current value of property "di" Format pattern according to IETF RFC 4122. *//* registration data variables for the resources */
 
 /* global resource variables for path: d2dserverlist */
 static char* g_d2dserverlist_RESOURCE_ENDPOINT = "d2dserverlist"; /* used path for this resource */
 static char* g_d2dserverlist_RESOURCE_TYPE[MAX_STRING] = { "oic.r.d2dserverlist" }; /* rt value (as an array) */
 int g_d2dserverlist_nr_resource_types = 1;
+
+/* forward declarations */
+static void issue_requests(void);
 
 
 
@@ -185,17 +208,24 @@ static oc_endpoint_t* is_udn_listed(char* udn)
 {
 
   PRINT("  Finding UDN %s \n", udn);
-  oc_endpoint_t* ep = discovered_server;
-  while (ep != NULL) {
-    char uuid[OC_UUID_LEN] = { 0 };
-    oc_uuid_to_str(&ep->di, uuid, OC_UUID_LEN);
-    PRINT("        uuid %s\n", uuid);
-    PRINT("        udn  %s\n", udn);
-    if (strncmp(uuid, udn, OC_UUID_LEN) == 0) {
-      return ep;
+
+  for (int i=0; i<discovered_server_count; i++) {
+    oc_endpoint_t* ep = discovered_server[i];
+    while (ep != NULL) {
+      char uuid[OC_UUID_LEN] = { 0 };
+      oc_uuid_to_str(&ep->di, uuid, OC_UUID_LEN);
+      PRINT("        uuid %s\n", uuid);
+      PRINT("        udn  %s\n", udn);
+      PRINT("        endpoint ");
+      PRINTipaddr(*ep);
+      if (strncmp(uuid, udn, OC_UUID_LEN) == 0) {
+        return ep;
+      }
+      ep = ep->next;
     }
     ep = ep->next;
   }
+  PRINT("None matched, returning NULL endpoint\n");
   return NULL;
 }
 
@@ -211,7 +241,7 @@ app_init(void)
      can be ocf.2.2.0 (or even higher)
      supplied values are for ocf.2.2.0 */
   ret |= oc_add_device("/oic/d", "oic.d.cloudproxy", "cloud_proxy",
-    "ocf.2.2.0", /* icv value */
+    "ocf.2.2.3", /* icv value */
     "ocf.res.1.3.0, ocf.sh.1.3.0",  /* dmv value */
     NULL, NULL);
 
@@ -256,6 +286,7 @@ app_init(void)
 * @param name the name of the property
 * @return the error_status, e.g. if error_status is true, then the input document contains something illegal
 */
+/*
 static bool
 check_on_readonly_common_resource_properties(oc_string_t name, bool error_state)
 {
@@ -281,6 +312,7 @@ check_on_readonly_common_resource_properties(oc_string_t name, bool error_state)
   }
   return error_state;
 }
+*/
 
 
 /**
@@ -388,6 +420,40 @@ remove_di(char* di, int len)
 }
 
 
+/*  find the resource with an url that starts with the di
+*/
+oc_resource_t* find_resource(const char* di)
+{
+  oc_resource_t* res = oc_ri_get_app_resources();
+  while (res != NULL) {
+    if ( strncmp(di, oc_string(res->uri), strlen(di)) == 0)
+      return res;
+    res = res->next;
+  }
+  return res;
+}
+
+
+/**
+*  unregister resources 
+*/
+static bool
+unregister_resources(char* di, int len)
+{
+  (void)len;
+  oc_resource_t* res = NULL;
+
+  res = find_resource(di);
+  while (res != NULL)
+  {
+    // delete the resource
+    oc_ri_delete_resource(res);
+    // get a next one if exist
+    res = find_resource(di);
+  }
+  return true;
+}
+
 /**
 * post method for "d2dserverlist" resource.
 * The function has as input the request body, which are the input values of the POST method.
@@ -409,7 +475,7 @@ post_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void* 
   (void)user_data;
   bool error_state = true;
   PRINT("-- Begin post_d2dserverlist:\n");
-  oc_rep_t* rep = request->request_payload;
+  //oc_rep_t* rep = request->request_payload;
 
   // di is a query param, copy from DELETE.
   bool stored = false;
@@ -504,7 +570,10 @@ delete_d2dserverlist(oc_request_t* request, oc_interface_mask_t interfaces, void
       // remove it
       PRINT(" FOUND = TRUE \n");
 
-      // TODO: also remove the resources that are registered..
+      // remove the resources that are registered..
+      bool unregister = unregister_resources(_di, _di_len);
+      PRINT(" unregister resources of di: %s\n", btoa(unregister));
+      // remove the di of the d2d server list
       bool removed = remove_di(_di, _di_len);
       PRINT(" Removed di: %s\n", btoa(removed));
     }
@@ -594,6 +663,7 @@ factory_presets_cb(size_t device, void* data)
   (void)data;
 #if defined(OC_SECURITY) && defined(OC_PKI)
   /* code to include an pki certificate and root trust anchor */
+#ifdef MANUFACTORER_PKI
 #include "oc_pki.h"
 #include "pki_certs.h"
   int credid =
@@ -620,6 +690,8 @@ factory_presets_cb(size_t device, void* data)
   }
 
   oc_pki_set_security_profile(0, OC_SP_BLACK, OC_SP_BLACK, credid);
+#endif /* MANUFACTORER_PKI */
+
 #else
   PRINT("No PKI certificates installed\n");
 #endif /* OC_SECURITY && OC_PKI */
@@ -957,10 +1029,26 @@ discovery(const char* anchor, const char* uri, oc_string_array_t types,
       anchor_to_udn(anchor, udn);
       PRINT("  UDN '%s'\n", udn);
 
+#ifndef PROXY_ALL
+      if (if_di_exist(udn, (int)strlen(udn)) == false)
+      {
+        return OC_CONTINUE_DISCOVERY;
+      }
+#endif
+
       if (is_udn_listed(udn) == NULL) {
         // add new server to the list
         PRINT("  ADDING UDN '%s'\n", udn);
-        oc_endpoint_list_copy(&discovered_server, endpoint);
+
+        if (discovered_server_count < MAX_DISCOVERED_SERVER) {                
+          oc_endpoint_t* copy = (oc_endpoint_t*)malloc(sizeof(oc_endpoint_t));
+          oc_endpoint_copy(copy, endpoint);
+          discovered_server[discovered_server_count++] = copy;
+        }
+        else {
+          PRINT("Discovered server storage limit reached \n");
+          return OC_CONTINUE_DISCOVERY;
+        }
       }
       strncpy(url, uri, uri_len);
       url[uri_len] = '\0';
@@ -1121,6 +1209,68 @@ cloud_status_handler(oc_cloud_context_t* ctx, oc_cloud_status_t status,
 }
 #endif // OC_CLOUD
 
+static int
+read_pem(const char *file_path, char *buffer, size_t *buffer_len)
+{
+  FILE *fp = fopen(file_path, "r");
+  if (fp == NULL) {
+    PRINT("ERROR: unable to read PEM\n");
+    return -1;
+  }
+  if (fseek(fp, 0, SEEK_END) != 0) {
+    PRINT("ERROR: unable to read PEM\n");
+    fclose(fp);
+    return -1;
+  }
+  long pem_len = ftell(fp);
+  if (pem_len < 0) {
+    PRINT("ERROR: could not obtain length of file\n");
+    fclose(fp);
+    return -1;
+  }
+  if (pem_len > (long)*buffer_len) {
+    PRINT("ERROR: buffer provided too small\n");
+    fclose(fp);
+    return -1;
+  }
+  if (fseek(fp, 0, SEEK_SET) != 0) {
+    PRINT("ERROR: unable to read PEM\n");
+    fclose(fp);
+    return -1;
+  }
+  if (fread(buffer, 1, pem_len, fp) < (size_t)pem_len) {
+    PRINT("ERROR: unable to read PEM\n");
+    fclose(fp);
+    return -1;
+  }
+  fclose(fp);
+  buffer[pem_len] = '\0';
+  *buffer_len = (size_t)pem_len;
+  return 0;
+}
+
+/** Taken from cloud_server code */
+static void
+minimal_factory_presets_cb(size_t device, void *data)
+{
+  (void)device;
+  (void)data;
+  unsigned char cloud_ca[4096];
+  size_t cert_len = 4096;
+  if (read_pem("pki_certs/cloudca.pem", (char *)cloud_ca, &cert_len) < 0) {
+    PRINT("ERROR: unable to read certificates\n");
+    return;
+  }
+
+  int rootca_credid =
+    oc_pki_add_trust_anchor(0, (const unsigned char *)cloud_ca, cert_len);
+  if (rootca_credid < 0) {
+    PRINT("ERROR installing root cert\n");
+    return;
+  }
+}
+
+
 /**
 * main application.
 * intializes the global variables
@@ -1174,7 +1324,7 @@ main(int argc, char* argv[])
   sigaction(SIGINT, &sa, NULL);
 #endif
 
-  PRINT("OCF Server name : \"cloud_proxy\"\n");
+  PRINT("OCF Server name : \"%s\"\n", device_name);
 
   /*
    The storage folder depends on the build system
@@ -1183,17 +1333,9 @@ main(int argc, char* argv[])
   */
 #ifdef OC_SECURITY
   PRINT("Intialize Secure Resources\n");
-#ifdef WIN32
 #ifdef OC_CLOUD
   PRINT("\tstorage at './cloud_proxy_creds' \n");
   oc_storage_config("./cloud_proxy_creds");
-#else
-  PRINT("\tstorage at './simpleserver_creds' \n");
-  oc_storage_config("./simpleserver_creds/");
-#endif
-#else
-  PRINT("\tstorage at './device_builder_server_creds' \n");
-  oc_storage_config("./device_builder_server_creds");
 #endif
 
   /*intialize the variables */
@@ -1220,7 +1362,8 @@ main(int argc, char* argv[])
 #endif /* OC_SECURITY_PIN */
 #endif /* OC_SECURITY */
 
-  oc_set_factory_presets_cb(factory_presets_cb, NULL);
+  oc_set_factory_presets_cb(minimal_factory_presets_cb, NULL);
+  // oc_set_factory_presets_cb(factory_presets_cb, NULL);
 
   /* start the stack */
   init = oc_main_init(&handler);
@@ -1239,20 +1382,26 @@ main(int argc, char* argv[])
     retval = oc_cloud_manager_start(ctx, cloud_status_handler, NULL);
     PRINT("   manager status %d\n", retval);
     if (cis) {
-      int retval;
-      PRINT("Conf Cloud Manager\n");
-      PRINT("   cis       %s\n", cis);
-      PRINT("   auth_code %s\n", auth_code);
-      PRINT("   sid       %s\n", sid);
-      PRINT("   apn       %s\n", apn);
+      if (argc == 6) {
+        int retval;
+        /* configure the */
+        retval = oc_cloud_provision_conf_resource(ctx, cis, auth_code, sid, apn);
+        PRINT("   config status  %d\n", retval);
 
-      retval = oc_cloud_provision_conf_resource(ctx, cis, auth_code, sid, apn);
-      PRINT("   config status  %d\n", retval);
+        PRINT("Conf Cloud Manager\n");
+        PRINT("   cis       %s\n", cis);
+        PRINT("   auth_code %s\n", auth_code);
+        PRINT("   sid       %s\n", sid);
+        PRINT("   apn       %s\n", apn);
+      }
+      else {
+        PRINT("Conf Cloud Manager: waiting to be provisioned by an OBT\n");
+      }
     }
   }
 #endif 
 
-  PRINT("OCF server \"cloud_proxy\" running, waiting on incoming connections.\n");
+  PRINT("OCF server \"%s\" running, waiting on incoming connections.\n", device_name);
 
 #ifdef WIN32
   /* windows specific loop */

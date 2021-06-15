@@ -1,0 +1,23 @@
+From a242f50acd0cb7fcb6dd8b90063f9e70733be483 Mon Sep 17 00:00:00 2001
+From: Simon Leet <simon.leet@microsoft.com>
+Date: Sat, 18 Jul 2020 01:14:00 +0000
+Subject: [PATCH 3/3] Classify #3464 ChangeLog entry as Bugfix
+
+Signed-off-by: Simon Leet <simon.leet@microsoft.com>
+---
+ ChangeLog.d/x509write_csr_heap_alloc.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ChangeLog.d/x509write_csr_heap_alloc.txt b/ChangeLog.d/x509write_csr_heap_alloc.txt
+index abce20c4d..6223698bb 100644
+--- a/ChangeLog.d/x509write_csr_heap_alloc.txt
++++ b/ChangeLog.d/x509write_csr_heap_alloc.txt
+@@ -1,4 +1,4 @@
+-Changes
++Bugfix
+    * Reduce the stack consumption of mbedtls_x509write_csr_der() which
+      previously could lead to stack overflow on constrained devices.
+      Contributed by Doru Gucea and Simon Leet in #3464.
+-- 
+2.20.1
+

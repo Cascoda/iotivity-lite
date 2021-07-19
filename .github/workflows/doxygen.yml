@@ -23,7 +23,6 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install doxygen
           doxygen --version
-          
           cd tools
 	  ./build_doc.sh
 

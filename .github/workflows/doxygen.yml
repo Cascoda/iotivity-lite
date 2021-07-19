@@ -32,7 +32,7 @@ jobs:
           git clone git@github.com:Cascoda/iotivity-lite-doxygen.git
           cd iotivity-lite-doxygen
           rm -rf *
-          cp -r ${{ github.workspace }}/tools/html .
+          cp -r ${{ github.workspace }}/iotivity-lite/tools/html .
           #Rename to "docs"
           mv html docs
           

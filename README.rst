@@ -54,7 +54,8 @@ api/*
   utility and helper functions to encode/decode
   to/from OCF’s data model, module for encoding and interpreting type 4
   UUIDs, base64 strings, OCF endpoints, and handlers for the discovery, platform
-  and device resources.
+  and device resources. A complete reference of the Iotivity-Lite API can be found
+  `here <https://cascoda.github.io/iotivity-lite-doxygen/>`_.
 
 messaging/coap/*
   contains a tailored CoAP implementation.

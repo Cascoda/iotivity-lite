@@ -23,7 +23,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install doxygen
           doxygen --version
-          cd tools
+          cd ${{ github.workspace }}/iotivity-lite/tools
           ./build_doc.sh
 
       - name: copy-docs

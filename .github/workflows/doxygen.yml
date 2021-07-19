@@ -1,0 +1,47 @@
+name: BuildAndPublishDoxygen
+
+on: [push]
+#   push:
+#     branches:
+#       - master
+  workflow_dispatch:
+
+jobs:
+  doxygen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: iotivity-lite
+      
+      - uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.IOTIVITY_SSH_KEY }}
+        
+      - name: build-docs
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install doxygen
+          doxygen --version
+          
+          cd tools
+		      ./build_doc.sh
+          
+      - name: copy-docs
+        run: |
+          cd ~/work
+          git clone git@github.com:Cascoda/iotivity-lite-doxygen.git
+          cd iotivity-lite-doxygen
+          rm -rf *
+          cp -r ${{ github.workspace }}/tools/html .
+          #Rename to "docs"
+          mv html docs
+          
+      - name: push-changes
+        run: |
+          cd ~/work/iotivity-lite-doxygen
+          git config --global user.name 'Cascoda Bot'
+          git config --global user.email 'github@cascoda.com'
+          git add .
+          git diff-index --quiet HEAD || git commit -m "Automatic publish from github.com/Cascoda/iotivity-lite"
+          git push
